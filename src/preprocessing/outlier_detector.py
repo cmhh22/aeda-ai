@@ -8,6 +8,7 @@ import pandas as pd
 from pyod.models.iforest import IForest
 from sklearn.impute import SimpleImputer
 
+from utils.decorators import track_transformation
 from data_component import DataComponent
 
 
@@ -94,6 +95,7 @@ class OutlierDetector(DataComponent):
 
         return pd.Series(labels == 1, index=data.index)
 
+    @track_transformation
     def run(self, data: pd.DataFrame) -> dict[str, Any]:
         if data.empty:
             raise ValueError("Input DataFrame is empty")

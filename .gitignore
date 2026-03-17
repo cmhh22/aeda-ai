@@ -38,6 +38,7 @@ Thumbs.db
 
 # Logs
 *.log
+audit_log.json
 
 # Local environment secrets
 .env

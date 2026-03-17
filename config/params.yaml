@@ -1,0 +1,29 @@
+project:
+  name: AEDA-Framework
+  timezone: UTC
+
+paths:
+  input_default: data/raw/samples.csv
+  output_processed: data/processed
+  output_exports: data/processed/exports
+  audit_log: audit_log.json
+
+pipeline:
+  random_state: 42
+  outliers_enabled: true
+  imputation_method: missforest
+
+outliers:
+  contamination: 0.05
+  physical_limits_source: DEFAULT_NAAQS_LIMITS
+
+imputation:
+  missforest_n_estimators: 200
+  missforest_max_iter: 10
+  pchip_enabled: true
+
+standardization:
+  normal_skew_threshold: 0.5
+  high_skew_threshold: 1.0
+  normaltest_alpha: 0.05
+  epsilon: 0.000001

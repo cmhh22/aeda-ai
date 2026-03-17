@@ -3,6 +3,7 @@
 # Manejo de datos
 numpy>=1.26.0
 pandas>=2.2.0
+pyarrow>=16.0.0
 
 # Machine learning base
 scikit-learn>=1.5.0
@@ -15,3 +16,6 @@ missingpy>=0.2.0
 
 # Interpolación
 scipy>=1.13.0
+
+# CLI progress
+tqdm>=4.66.0

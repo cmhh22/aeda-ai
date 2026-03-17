@@ -14,6 +14,7 @@ setup(
     install_requires=[
         "numpy>=1.26.0",
         "pandas>=2.2.0",
+        "pyarrow>=16.0.0",
         "scipy>=1.13.0",
         "scikit-learn>=1.5.0",
         "pyod>=2.0.0",

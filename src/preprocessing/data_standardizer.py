@@ -13,6 +13,7 @@ import pandas as pd
 from scipy.stats import boxcox, normaltest, skew
 from sklearn.preprocessing import StandardScaler
 
+from utils.decorators import track_transformation
 from data_component import DataComponent
 
 
@@ -282,6 +283,7 @@ class DataStandardizer(DataComponent):
         destination.write_text(json.dumps(metadata, indent=2, ensure_ascii=False), encoding="utf-8")
         return destination
 
+    @track_transformation
     def run(
         self,
         data: pd.DataFrame,

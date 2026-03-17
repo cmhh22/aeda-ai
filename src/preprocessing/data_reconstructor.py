@@ -8,6 +8,7 @@ import pandas as pd
 from scipy.interpolate import PchipInterpolator
 from sklearn.metrics import mean_squared_error
 
+from utils.decorators import track_transformation
 from data_component import DataComponent
 
 try:
@@ -54,6 +55,7 @@ class DataReconstructor(DataComponent):
     def _to_numeric_frame(data: pd.DataFrame, columns: list[str]) -> pd.DataFrame:
         return data[columns].apply(pd.to_numeric, errors="coerce")
 
+    @track_transformation
     def reconstruct_time_series_pchip(
         self,
         data: pd.DataFrame,
@@ -103,6 +105,7 @@ class DataReconstructor(DataComponent):
 
         return reconstructed
 
+    @track_transformation
     def reconstruct_tabular_missforest(
         self,
         data: pd.DataFrame,
@@ -234,6 +237,7 @@ class DataReconstructor(DataComponent):
             mse_std=float(np.std(valid_mse)),
         )
 
+    @track_transformation
     def run(
         self,
         data: pd.DataFrame,
