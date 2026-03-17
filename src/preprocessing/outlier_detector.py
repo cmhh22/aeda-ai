@@ -39,9 +39,9 @@ class OutlierDetector(DataComponent):
         random_state: int = 42,
     ) -> None:
         if not physical_limits:
-            raise ValueError("physical_limits no puede estar vacío")
+            raise ValueError("physical_limits cannot be empty")
         if contamination <= 0 or contamination >= 0.5:
-            raise ValueError("contamination debe estar en el intervalo (0, 0.5)")
+            raise ValueError("contamination must be in interval (0, 0.5)")
 
         self.physical_limits = physical_limits
         self.contamination = contamination
@@ -96,7 +96,7 @@ class OutlierDetector(DataComponent):
 
     def run(self, data: pd.DataFrame) -> dict[str, Any]:
         if data.empty:
-            raise ValueError("El DataFrame de entrada está vacío")
+            raise ValueError("Input DataFrame is empty")
 
         cleaned_data = data.copy()
 

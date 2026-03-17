@@ -1,2 +1,2 @@
-# Módulo de Visualización
-# Incluye: gráficas estáticas (matplotlib/seaborn) e interactivas (plotly)
+# Visualization Module
+# Includes: static plots (matplotlib/seaborn) and interactive plots (plotly)

@@ -1,1 +1,1 @@
-# Módulo de Utilidades Generales
+# General Utilities Module

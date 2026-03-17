@@ -42,12 +42,12 @@ class DataReconstructor(DataComponent):
         if columns is None:
             numeric = data.select_dtypes(include=[np.number]).columns.tolist()
             if not numeric:
-                raise ValueError("No hay columnas numéricas para imputación")
+                raise ValueError("No numeric columns available for imputation")
             return numeric
 
         missing_columns = [column for column in columns if column not in data.columns]
         if missing_columns:
-            raise ValueError(f"Columnas inexistentes en DataFrame: {missing_columns}")
+            raise ValueError(f"Nonexistent columns in DataFrame: {missing_columns}")
         return columns
 
     @staticmethod
@@ -61,14 +61,14 @@ class DataReconstructor(DataComponent):
         time_column: str | None = None,
     ) -> pd.DataFrame:
         if data.empty:
-            raise ValueError("El DataFrame de entrada está vacío")
+            raise ValueError("Input DataFrame is empty")
 
         resolved_columns = self._resolve_columns(data, columns)
         reconstructed = data.copy()
 
         if time_column is not None:
             if time_column not in reconstructed.columns:
-                raise ValueError(f"time_column '{time_column}' no existe en DataFrame")
+                raise ValueError(f"time_column '{time_column}' does not exist in DataFrame")
             time_values = pd.to_numeric(reconstructed[time_column], errors="coerce")
             x_all = time_values.to_numpy(dtype=float)
         else:
@@ -110,10 +110,10 @@ class DataReconstructor(DataComponent):
         categorical_columns: list[str] | None = None,
     ) -> pd.DataFrame:
         if data.empty:
-            raise ValueError("El DataFrame de entrada está vacío")
+            raise ValueError("Input DataFrame is empty")
         if MissForest is None:
             raise ImportError(
-                "missingpy no está instalado. Instala con: pip install missingpy"
+                "missingpy is not installed. Install with: pip install missingpy"
             )
 
         resolved_columns = self._resolve_columns(data, columns)
@@ -125,7 +125,7 @@ class DataReconstructor(DataComponent):
             missing_categories = [column for column in categorical_columns if column not in resolved_columns]
             if missing_categories:
                 raise ValueError(
-                    "categorical_columns debe ser subconjunto de columns. Faltan: "
+                    "categorical_columns must be a subset of columns. Missing: "
                     f"{missing_categories}"
                 )
             cat_vars = [resolved_columns.index(column) for column in categorical_columns]
@@ -153,16 +153,16 @@ class DataReconstructor(DataComponent):
         categorical_columns: list[str] | None = None,
     ) -> ImputationValidationReport:
         if folds < 2:
-            raise ValueError("folds debe ser >= 2")
+            raise ValueError("folds must be >= 2")
         if mask_fraction <= 0 or mask_fraction >= 1:
-            raise ValueError("mask_fraction debe estar en el intervalo (0, 1)")
+            raise ValueError("mask_fraction must be in interval (0, 1)")
 
         resolved_columns = self._resolve_columns(data, columns)
         numeric_frame = self._to_numeric_frame(data, resolved_columns)
 
         observed_positions = np.argwhere(~numeric_frame.isna().to_numpy())
         if len(observed_positions) == 0:
-            raise ValueError("No hay valores observados para evaluar la imputación")
+            raise ValueError("No observed values available for imputation evaluation")
 
         rng = np.random.default_rng(self.random_state)
         mse_values: list[float] = []
@@ -198,7 +198,7 @@ class DataReconstructor(DataComponent):
                     categorical_columns=categorical_columns,
                 )
             else:
-                raise ValueError("strategy debe ser 'pchip' o 'missforest'")
+                raise ValueError("strategy must be 'pchip' or 'missforest'")
 
             pred_values: list[float] = []
             for row_idx, col_idx in masked_positions:
@@ -223,7 +223,7 @@ class DataReconstructor(DataComponent):
 
         valid_mse = [value for value in mse_values if not np.isnan(value)]
         if not valid_mse:
-            raise ValueError("No se pudo calcular MSE válido; revise datos o estrategia")
+            raise ValueError("Could not compute valid MSE; check data or strategy")
 
         return ImputationValidationReport(
             strategy=strategy,
@@ -258,7 +258,7 @@ class DataReconstructor(DataComponent):
                 categorical_columns=categorical_columns,
             )
         else:
-            raise ValueError("strategy debe ser 'pchip' o 'missforest'")
+            raise ValueError("strategy must be 'pchip' or 'missforest'")
 
         report: ImputationValidationReport | None = None
         if estimate_mse:

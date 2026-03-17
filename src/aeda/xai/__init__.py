@@ -1,2 +1,2 @@
-# Módulo XAI - Inteligencia Artificial Explicable
-# Incluye: SHAP, LIME
+# XAI Module - Explainable Artificial Intelligence
+# Includes: SHAP, LIME

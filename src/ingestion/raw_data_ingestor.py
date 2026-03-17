@@ -46,18 +46,18 @@ class RawDataIngestor(DataComponent):
     def _normalize_schema(chemical_schema: dict[str, str] | Iterable[str]) -> dict[str, str]:
         if isinstance(chemical_schema, dict):
             if not chemical_schema:
-                raise ValueError("chemical_schema no puede estar vacío")
+                raise ValueError("chemical_schema cannot be empty")
             return {column: str(unit).strip() for column, unit in chemical_schema.items()}
 
         columns = [column for column in chemical_schema]
         if not columns:
-            raise ValueError("chemical_schema no puede estar vacío")
+            raise ValueError("chemical_schema cannot be empty")
         return {column: "ppm" for column in columns}
 
     def _read_file(self, file_path: str | Path) -> pd.DataFrame:
         file_path = Path(file_path)
         if not file_path.exists():
-            raise FileReadError(f"Archivo no encontrado: {file_path}")
+            raise FileReadError(f"File not found: {file_path}")
 
         try:
             if file_path.suffix.lower() == ".csv":
@@ -65,12 +65,12 @@ class RawDataIngestor(DataComponent):
             if file_path.suffix.lower() in {".xlsx", ".xls"}:
                 return pd.read_excel(file_path)
         except (pd.errors.EmptyDataError, UnicodeDecodeError, ValueError) as error:
-            raise FileReadError(f"No se pudo leer el archivo {file_path}: {error}") from error
+            raise FileReadError(f"Failed to read file {file_path}: {error}") from error
         except Exception as error:
-            raise FileReadError(f"Error inesperado leyendo {file_path}: {error}") from error
+            raise FileReadError(f"Unexpected error reading {file_path}: {error}") from error
 
         raise FileReadError(
-            f"Formato no soportado: {file_path.suffix}. Use archivos CSV o Excel (.xlsx/.xls)."
+            f"Unsupported format: {file_path.suffix}. Use CSV or Excel files (.xlsx/.xls)."
         )
 
     def _validate_schema(self, data: pd.DataFrame) -> None:
@@ -79,7 +79,7 @@ class RawDataIngestor(DataComponent):
         missing = sorted(expected - present)
         if missing:
             raise SchemaValidationError(
-                f"Columnas químicas faltantes en el archivo: {missing}. Esquema esperado: {sorted(expected)}"
+                f"Missing chemical columns in file: {missing}. Expected schema: {sorted(expected)}"
             )
 
         if self.strict_schema:
@@ -87,7 +87,7 @@ class RawDataIngestor(DataComponent):
             extras = sorted(present - allowed)
             if extras:
                 raise SchemaValidationError(
-                    f"Columnas no permitidas por el esquema: {extras}. Columnas permitidas: {sorted(allowed)}"
+                    f"Schema validation failed - unexpected columns: {extras}. Allowed columns: {sorted(allowed)}"
                 )
 
     def _validate_non_negative(self, data: pd.DataFrame) -> None:
@@ -97,7 +97,7 @@ class RawDataIngestor(DataComponent):
             if invalid_mask.any():
                 invalid_rows = data.index[invalid_mask].tolist()
                 raise DataValidationError(
-                    f"Se detectaron concentraciones negativas en '{column}' en filas {invalid_rows}."
+                    f"Negative concentrations detected in '{column}' at rows {invalid_rows}."
                 )
 
     def _convert_units(self, data: pd.DataFrame) -> pd.DataFrame:
@@ -113,7 +113,7 @@ class RawDataIngestor(DataComponent):
             conversion_fn = self.conversion_registry.get((source, target))
             if conversion_fn is None:
                 raise UnitConversionError(
-                    f"No existe conversión implementada de '{source_unit}' a '{self.target_unit}' para '{column}'."
+                    f"No unit conversion implemented from '{source_unit}' to '{self.target_unit}' for '{column}'."
                 )
 
             numeric_series = pd.to_numeric(converted[column], errors="coerce")

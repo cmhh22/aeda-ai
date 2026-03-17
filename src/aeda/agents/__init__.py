@@ -1,2 +1,2 @@
-# Módulo de Agentes
-# Flujos de trabajo agentes (scAInce / Agentic Workflows)
+# Agents Module
+# Agent workflows (scAInce / Agentic Workflows)

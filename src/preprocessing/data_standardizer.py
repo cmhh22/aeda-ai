@@ -246,12 +246,12 @@ class DataStandardizer(DataComponent):
         if columns is None:
             numeric_columns = data.select_dtypes(include=[np.number]).columns.tolist()
             if not numeric_columns:
-                raise ValueError("No hay columnas numéricas para estandarizar")
+                raise ValueError("No numeric columns available for standardization")
             return numeric_columns
 
         missing = [column for column in columns if column not in data.columns]
         if missing:
-            raise ValueError(f"Columnas inexistentes en DataFrame: {missing}")
+            raise ValueError(f"Nonexistent columns in DataFrame: {missing}")
         return columns
 
     def _select_transformation(self, skewness_value: float, series_min: float) -> TransformationName:
@@ -292,7 +292,7 @@ class DataStandardizer(DataComponent):
         dataset_name: str = "AEDA-Framework Dataset",
     ) -> StandardizerOutput:
         if data.empty:
-            raise ValueError("El DataFrame de entrada está vacío")
+            raise ValueError("Input DataFrame is empty")
 
         selected_columns = self._resolve_columns(data, columns)
         standardized_data = data.copy()

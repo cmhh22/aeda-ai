@@ -1,5 +1,5 @@
 # AEDA Framework
-# Análisis Exploratorio de Datos Ambientales con IA
+# Environmental Data Exploratory Analysis with AI
 # LEA-CEAC | 2026
 
 __version__ = "1.0.0"

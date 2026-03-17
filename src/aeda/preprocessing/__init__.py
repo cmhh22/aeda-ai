@@ -1,2 +1,2 @@
-# Módulo de Preprocesamiento
-# Incluye: detección de outliers e imputación de datos faltantes
+# Preprocessing Module
+# Includes: outlier detection and missing data imputation
