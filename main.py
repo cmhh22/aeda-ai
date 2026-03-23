@@ -68,7 +68,7 @@ def run_pipeline_command(args: argparse.Namespace) -> int:
 
         def _outlier_stage(df: pd.DataFrame) -> pd.DataFrame:
             result = outlier_detector.run(df)
-            return result["cleaned_data"]
+            return result["data"]
 
         stages.append(("Outlier detection", _outlier_stage))
 
@@ -81,7 +81,7 @@ def run_pipeline_command(args: argparse.Namespace) -> int:
             columns=None,
             estimate_mse=False,
         )
-        return result["reconstructed_data"]
+        return result["data"]
 
     stages.append((f"Imputation ({args.impute})", _imputation_stage))
 
@@ -96,7 +96,7 @@ def run_pipeline_command(args: argparse.Namespace) -> int:
             metadata_path=ROOT / "data" / "processed" / "metadata.json",
             dataset_name=input_path.stem,
         )
-        return result["standardized_data"]
+        return result["data"]
 
     stages.append(("Standardization", _standardization_stage))
 

@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from aeda_pipeline import AEDA_Pipeline
-from pipeline_step import PipelineStep
+from pipeline.aeda_pipeline import AEDA_Pipeline
+from pipeline.pipeline_step import PipelineStep
 
 # Import actual preprocessing modules from outside pipeline package
 import sys
@@ -65,7 +65,7 @@ class OutlierDetectionStep(PipelineStep):
 
     def execute(self, data: pd.DataFrame) -> pd.DataFrame:
         result = self.detector.run(data)
-        return result["data_cleaned"]
+        return result["data"]
 
 
 class DataReconstructionStep(PipelineStep):
@@ -110,7 +110,7 @@ class DataStandardizationStep(PipelineStep):
 
     def execute(self, data: pd.DataFrame) -> pd.DataFrame:
         result = self.standardizer.run(data, columns=self.columns)
-        return result["data_standardized"]
+        return result["data"]
 
 
 # Example usage

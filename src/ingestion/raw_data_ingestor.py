@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any, Callable, Iterable
 
 import pandas as pd
 
-from data_component import DataComponent
+from ..data_component import DataComponent
+from ..data_component_contracts import ComponentOutput, build_component_output
 
 
 class FileReadError(Exception):
@@ -41,6 +43,13 @@ class RawDataIngestor(DataComponent):
             ("ppm", "%"): lambda series: series / 10000,
             ("%", "ppm"): lambda series: series * 10000,
         }
+        self._lt_pattern = re.compile(r"^\s*<\s*(-?\d+(?:\.\d+)?)\s*$")
+        self._gt_pattern = re.compile(
+            r"^\s*>\s*(-?\d+(?:\.\d+)?)(?:\s*\(\s*(-?\d+(?:\.\d+)?)\s*\))?\s*$"
+        )
+        self._plus_minus_pattern = re.compile(
+            r"^\s*(-?\d+(?:\.\d+)?)\s*(?:±|\+/-)\s*(\d+(?:\.\d+)?)\s*$"
+        )
 
     @staticmethod
     def _normalize_schema(chemical_schema: dict[str, str] | Iterable[str]) -> dict[str, str]:
@@ -121,8 +130,107 @@ class RawDataIngestor(DataComponent):
 
         return converted
 
-    def run(self, file_path: str | Path) -> pd.DataFrame:
+    def _parse_analytical_value(self, value: Any) -> tuple[float | None, str | None, float | None]:
+        if value is None:
+            return None, None, None
+
+        if isinstance(value, (int, float)) and pd.notna(value):
+            return float(value), None, None
+
+        text_value = str(value).strip()
+        if text_value == "" or text_value.lower() in {"nan", "none"}:
+            return None, None, None
+
+        lt_match = self._lt_pattern.match(text_value)
+        if lt_match:
+            lod = float(lt_match.group(1))
+            return lod, "lt_lod", None
+
+        gt_match = self._gt_pattern.match(text_value)
+        if gt_match:
+            real_value = gt_match.group(2)
+            parsed = float(real_value) if real_value is not None else float(gt_match.group(1))
+            return parsed, "gt_limit", None
+
+        plus_minus_match = self._plus_minus_pattern.match(text_value)
+        if plus_minus_match:
+            return (
+                float(plus_minus_match.group(1)),
+                "has_uncertainty",
+                float(plus_minus_match.group(2)),
+            )
+
+        normalized = text_value.replace(",", "")
+        try:
+            return float(normalized), None, None
+        except ValueError:
+            return None, "parse_error", None
+
+    def _parse_analytical_columns(self, data: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, Any]]:
+        parsed_data = data.copy()
+        quality_flags: dict[str, dict[str, int]] = {}
+
+        for column in self.chemical_columns:
+            if column not in parsed_data.columns:
+                continue
+
+            parsed_values: list[float | None] = []
+            uncertainty_values: list[float | None] = []
+            counts = {
+                "lt_lod": 0,
+                "gt_limit": 0,
+                "has_uncertainty": 0,
+                "parse_error": 0,
+            }
+
+            for raw_value in parsed_data[column]:
+                numeric_value, flag, uncertainty = self._parse_analytical_value(raw_value)
+                parsed_values.append(numeric_value)
+                uncertainty_values.append(uncertainty)
+                if flag is not None:
+                    counts[flag] += 1
+
+            parsed_series = pd.to_numeric(pd.Series(parsed_values, index=parsed_data.index), errors="coerce")
+            parsed_data[column] = parsed_series
+
+            uncertainty_column = f"U_{column}"
+            if uncertainty_column in parsed_data.columns:
+                existing_uncertainty = pd.to_numeric(parsed_data[uncertainty_column], errors="coerce")
+                parsed_uncertainty = pd.to_numeric(pd.Series(uncertainty_values, index=parsed_data.index), errors="coerce")
+                parsed_data[uncertainty_column] = existing_uncertainty.combine_first(parsed_uncertainty)
+            elif any(value is not None for value in uncertainty_values):
+                parsed_data[uncertainty_column] = pd.to_numeric(
+                    pd.Series(uncertainty_values, index=parsed_data.index),
+                    errors="coerce",
+                )
+
+            quality_flags[column] = counts
+
+        return parsed_data, {
+            "quality_flags": quality_flags,
+        }
+
+    def run(self, file_path: str | Path) -> ComponentOutput:
         data = self._read_file(file_path)
         self._validate_schema(data)
-        self._validate_non_negative(data)
-        return self._convert_units(data)
+        parsed_data, parsing_metadata = self._parse_analytical_columns(data)
+        self._validate_non_negative(parsed_data)
+        converted_data = self._convert_units(parsed_data)
+
+        metadata = {
+            "ingestion": {
+                "source_file": str(Path(file_path)),
+                "target_unit": self.target_unit,
+                "strict_schema": self.strict_schema,
+                **parsing_metadata,
+            }
+        }
+
+        return build_component_output(
+            data=converted_data,
+            metadata=metadata,
+            extra={
+                "raw_data": data,
+                "parsed_data": parsed_data,
+            },
+        )

@@ -9,8 +9,8 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from aeda_pipeline import AEDA_Pipeline, PipelineExecutionError
-from pipeline_step import PipelineStep
+from pipeline.aeda_pipeline import AEDA_Pipeline, PipelineExecutionError
+from pipeline.pipeline_step import PipelineStep
 
 
 class AddOneStep(PipelineStep):
@@ -219,6 +219,9 @@ def test_invalid_step_return_type():
     """Test error when step returns non-DataFrame."""
 
     class BadStep(PipelineStep):
+        def __init__(self):
+            super().__init__(name="bad_step")
+
         def execute(self, data: pd.DataFrame):
             return data.to_dict()  # Returns dict instead of DataFrame
 
@@ -235,6 +238,9 @@ def test_row_column_tracking():
     """Test that step tracks rows and columns affected."""
 
     class DropRowsStep(PipelineStep):
+        def __init__(self):
+            super().__init__(name="drop_rows")
+
         def execute(self, data: pd.DataFrame) -> pd.DataFrame:
             return data.iloc[:2]  # Keep only first 2 rows
 

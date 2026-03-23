@@ -1,10 +1,14 @@
-from data_component import DataComponent
-from ingestion.raw_data_ingestor import (
+from ..data_component import DataComponent
+from .raw_data_ingestor import (
 	DataValidationError,
 	FileReadError,
 	RawDataIngestor,
 	SchemaValidationError,
 	UnitConversionError,
+)
+from .universal_data_ingestor import (
+	MatrixTypeDetectionError,
+	UniversalDataIngestor,
 )
 
 __all__ = [
@@ -14,4 +18,6 @@ __all__ = [
 	"SchemaValidationError",
 	"DataValidationError",
 	"UnitConversionError",
+	"UniversalDataIngestor",
+	"MatrixTypeDetectionError",
 ]

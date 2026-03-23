@@ -7,7 +7,7 @@ dependencies:
   - python=3.11
   - pip
 
-  # Core científico
+  # Scientific core
   - numpy>=1.26.0
   - pandas>=2.2.0
   - scipy>=1.13.0
@@ -16,7 +16,7 @@ dependencies:
   - scikit-learn>=1.5.0
   - joblib>=1.4.0
 
-  # Visualización
+  # Visualization
   - matplotlib>=3.9.0
   - seaborn>=0.13.0
   - plotly>=5.22.0
@@ -27,12 +27,12 @@ dependencies:
   - ipywidgets>=8.1.0
   - nbformat>=5.10.0
 
-  # Utilidades
+  # Utilities
   - tqdm>=4.66.0
   - openpyxl>=3.1.0
   - pyarrow>=16.0.0
 
-  # Instalación vía pip (paquetes no disponibles en conda-forge o versiones específicas)
+  # Pip installation (packages not available in conda-forge or pinned versions)
   - pip:
     - pyod>=2.0.0
     - missingno>=0.5.2

@@ -39,6 +39,13 @@ Thumbs.db
 # Logs
 *.log
 audit_log.json
+logs/*.json
+
+# Runtime artifacts
+dataset_exploration.txt
+dataset_exploration_output.txt
+validate_output.txt
+validation_result.txt
 
 # Local environment secrets
 .env

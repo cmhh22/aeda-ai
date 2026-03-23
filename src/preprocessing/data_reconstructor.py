@@ -10,11 +10,17 @@ from sklearn.metrics import mean_squared_error
 
 from utils.decorators import track_transformation
 from data_component import DataComponent
+from data_component_contracts import build_component_output
 
 try:
     from missingpy import MissForest
 except ImportError:  # pragma: no cover
     MissForest = None  # type: ignore[assignment]
+
+try:
+    import miceforest as mf
+except ImportError:  # pragma: no cover
+    mf = None  # type: ignore[assignment]
 
 
 @dataclass
@@ -114,9 +120,9 @@ class DataReconstructor(DataComponent):
     ) -> pd.DataFrame:
         if data.empty:
             raise ValueError("Input DataFrame is empty")
-        if MissForest is None:
+        if MissForest is None and mf is None:
             raise ImportError(
-                "missingpy is not installed. Install with: pip install missingpy"
+                "No MissForest backend available. Install one of: pip install missingpy OR pip install miceforest"
             )
 
         resolved_columns = self._resolve_columns(data, columns)
@@ -133,14 +139,35 @@ class DataReconstructor(DataComponent):
                 )
             cat_vars = [resolved_columns.index(column) for column in categorical_columns]
 
-        model = MissForest(
-            max_iter=self.missforest_max_iter,
-            n_estimators=self.missforest_n_estimators,
-            random_state=self.random_state,
-        )
+        if MissForest is not None:
+            model = MissForest(
+                max_iter=self.missforest_max_iter,
+                n_estimators=self.missforest_n_estimators,
+                random_state=self.random_state,
+            )
+            imputed_array = model.fit_transform(numeric_frame.to_numpy(), cat_vars=cat_vars)
+            imputed_frame = pd.DataFrame(imputed_array, columns=resolved_columns, index=reconstructed.index)
+        else:
+            if mf is None:
+                raise ImportError("miceforest backend is unavailable")
 
-        imputed_array = model.fit_transform(numeric_frame.to_numpy(), cat_vars=cat_vars)
-        imputed_frame = pd.DataFrame(imputed_array, columns=resolved_columns, index=reconstructed.index)
+            kernel = mf.ImputationKernel(
+                data=numeric_frame,
+                random_state=self.random_state,
+                save_all_iterations_data=False,
+            )
+
+            try:
+                kernel.mice(
+                    iterations=self.missforest_max_iter,
+                    n_estimators=self.missforest_n_estimators,
+                )
+            except TypeError:
+                kernel.mice(iterations=self.missforest_max_iter)
+
+            imputed_frame = kernel.complete_data(dataset=0)
+            imputed_frame = imputed_frame[resolved_columns]
+
         reconstructed[resolved_columns] = imputed_frame[resolved_columns]
 
         return reconstructed
@@ -276,8 +303,11 @@ class DataReconstructor(DataComponent):
                 categorical_columns=categorical_columns,
             )
 
-        return {
-            "reconstructed_data": reconstructed,
-            "validation_report": report,
-            "validation_report_dict": report.__dict__ if report else None,
-        }
+        return build_component_output(
+            data=reconstructed,
+            report=report,
+            extra={
+                "reconstructed_data": reconstructed,
+                "validation_report": report,
+            },
+        )

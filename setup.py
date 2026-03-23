@@ -1,12 +1,12 @@
 # ============================================================
-# AEDA Framework - Configuración del Paquete
+# AEDA Framework - Package Configuration
 # ============================================================
 from setuptools import setup, find_packages
 
 setup(
     name="aeda-framework",
     version="1.0.0",
-    description="Análisis Exploratorio de Datos Ambientales con IA - LEA-CEAC",
+    description="AI-assisted Advanced Environmental Data Analysis - LEA-CEAC",
     author="LEA-CEAC",
     python_requires=">=3.11",
     package_dir={"": "src"},

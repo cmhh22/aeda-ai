@@ -39,7 +39,7 @@ def _extract_output_dataframe(result: Any) -> pd.DataFrame | None:
     if isinstance(result, pd.DataFrame):
         return result
     if isinstance(result, dict):
-        preferred_keys = ["standardized_data", "reconstructed_data", "cleaned_data", "data_cleaned", "data"]
+        preferred_keys = ["data", "standardized_data", "reconstructed_data", "cleaned_data", "data_cleaned"]
         for key in preferred_keys:
             value = result.get(key)
             if isinstance(value, pd.DataFrame):

@@ -15,6 +15,7 @@ from sklearn.preprocessing import StandardScaler
 
 from utils.decorators import track_transformation
 from data_component import DataComponent
+from data_component_contracts import build_component_output
 
 
 TransformationName = Literal["standard_scaler", "log1p", "boxcox"]
@@ -28,6 +29,7 @@ class DistributionInfo(TypedDict):
 
 
 class StandardizerOutput(TypedDict):
+    data: pd.DataFrame
     standardized_data: pd.DataFrame
     column_reports: list[ColumnStandardizationReport]
     metadata: dict[str, Any]
@@ -335,9 +337,12 @@ class DataStandardizer(DataComponent):
 
         metadata_file = self._write_metadata(metadata_path=metadata_path, metadata=metadata)
 
-        return {
-            "standardized_data": standardized_data,
-            "column_reports": column_reports,
-            "metadata": metadata,
-            "metadata_path": str(metadata_file),
-        }
+        return build_component_output(
+            data=standardized_data,
+            metadata=metadata,
+            extra={
+                "standardized_data": standardized_data,
+                "column_reports": column_reports,
+                "metadata_path": str(metadata_file),
+            },
+        )

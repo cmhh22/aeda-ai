@@ -1,6 +1,6 @@
 # AEDA-Framework requirements
 
-# Manejo de datos
+# Data handling
 numpy>=1.26.0
 pandas>=2.2.0
 pyarrow>=16.0.0
@@ -8,13 +8,13 @@ pyarrow>=16.0.0
 # Machine learning base
 scikit-learn>=1.5.0
 
-# Detección de outliers
+# Outlier detection
 pyod>=2.0.0
 
-# Imputación avanzada
-missingpy>=0.2.0
+# Advanced imputation
+miceforest>=5.0.2
 
-# Interpolación
+# Interpolation
 scipy>=1.13.0
 
 # CLI progress

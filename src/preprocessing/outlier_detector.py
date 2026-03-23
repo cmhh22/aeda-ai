@@ -10,6 +10,7 @@ from sklearn.impute import SimpleImputer
 
 from utils.decorators import track_transformation
 from data_component import DataComponent
+from data_component_contracts import build_component_output
 
 
 DEFAULT_NAAQS_LIMITS: dict[str, tuple[float | None, float | None]] = {
@@ -123,11 +124,13 @@ class OutlierDetector(DataComponent):
             combined_outlier_rows=int(combined_row_mask.sum()),
         )
 
-        return {
-            "cleaned_data": cleaned_data,
-            "outlier_mask": combined_row_mask,
-            "rule_based_mask": rule_cell_mask,
-            "iforest_mask": iforest_row_mask,
-            "report": report,
-            "report_dict": report.__dict__,
-        }
+        return build_component_output(
+            data=cleaned_data,
+            report=report,
+            extra={
+                "cleaned_data": cleaned_data,
+                "outlier_mask": combined_row_mask,
+                "rule_based_mask": rule_cell_mask,
+                "iforest_mask": iforest_row_mask,
+            },
+        )
