@@ -1,111 +1,152 @@
-# AEDA Framework
+# AEDA Framework - Guía Maestra de Tesis
 
-AI-assisted framework for **Advanced Environmental Data Analysis (AEDA)**.
+Este README es el **mapa principal** del proyecto para que no te pierdas durante el desarrollo.
 
-## Current Status
+## 1) Objetivo de la tesis
 
-- Module 1 (Universal Ingestion): **Implemented and validated**
-- Module 2 (Exploration): In progress
-- Module 3 (Explainable ML): Planned
-- Module 4 (Reporting and Dashboard): Planned
+Construir un framework reproducible para análisis de datos ambientales con IA, comenzando por ISOVIDA, que permita:
+- Ingerir datos de laboratorio complejos (`RAW`) de forma robusta.
+- Estandarizar y validar calidad de datos para uso científico.
+- Explorar patrones ambientales (espaciales/profundidad/composición).
+- Aplicar modelos explicables para apoyar interpretación científica.
+- Generar entregables claros para investigación y toma de decisiones.
 
-## Module 1: Universal Ingestion
+## 2) Producto final (qué debes tener al terminar)
 
-Module 1 ingests heterogeneous environmental datasets (sediment, water, air, soil, biota) and produces analysis-ready tables.
+### Producto técnico
+- Pipeline completo ejecutable: `RAW -> Ingesta -> QA/QC -> EDA -> ML explicable -> Reporte`.
+- Configurable por matriz (sedimento, agua, aire, suelo, biota).
+- Reproducible (mismas reglas, mismos resultados).
 
-### Core Features
+### Producto científico
+- Dataset limpio y trazable basado en ISOVIDA.
+- Resultados analíticos defendibles con reglas metodológicas explícitas.
+- Hallazgos principales alineados con una hipótesis prioritaria.
 
-- Automatic matrix type detection
-- Parsing of analytical notation (`< LOD`, `> AQL`, `± uncertainty`)
-- Censored value handling with multiple strategies (`lod_half`, `ros`, `qmle`, `percentile`)
-- Structured quality reporting and traceable metadata
+### Producto de tesis
+- Metodología clara por módulos.
+- Justificación de decisiones técnicas (censura, unidades, QA/QC).
+- Resultados + discusión + limitaciones + trabajo futuro.
 
-### Core Components
+## 3) Estado actual (checkpoint)
 
-- `src/ingestion/universal_data_ingestor.py`
-- `src/ingestion/raw_data_ingestor.py`
-- `src/ingestion/censored_value_handler.py`
-- `src/ingestion/matrix_type_detector.py`
-- `src/ingestion/data_quality_reporter.py`
+- ✅ Módulo 1 (Ingesta universal) implementado y validado con ISOVIDA.
+- ✅ Estructura ordenada: `docs/`, `tests/`, `src/`.
+- ✅ Documentación base creada.
+- 🔄 Pendiente: cerrar decisiones oficiales con tutor (censura, unidades, QA/QC, objetivo científico #1).
 
-## Quick Start
+## 4) Ruta de trabajo por etapas
 
-### 1) Create environment
+## Etapa 0 - Alineación metodológica (CRÍTICA)
+**Meta:** cerrar reglas con tutor antes de seguir a EDA/ML.
 
-```bash
-python -m venv .venv
-.\\.venv\\Scripts\\Activate.ps1
-pip install -r requirements.txt
-```
+Entregables:
+- Regla oficial para `<LOD`, `>LOQ/AQL`, `±` por analito.
+- Unidades oficiales y conversiones por analito/matriz.
+- Umbrales QA/QC de aprobación del dataset.
+- Objetivo científico #1 acordado.
 
-### 2) Run ingestion demo
+## Etapa 1 - Ingesta y control de calidad (Módulo 1)
+**Meta:** convertir `RAW` en dataset analítico reproducible.
 
-```bash
-python main_ingestion.py
-```
+Incluye:
+- Parsing de notación analítica.
+- Manejo de censura.
+- Conversión de unidades.
+- Reporte de calidad.
 
-### 3) Run validation scripts
+Salida esperada:
+- CSV limpio + metadatos + reporte QA/QC.
 
-```bash
-python tests/validation/test_ingestion_simple.py
-python tests/validation/validate_ingestion.py
-```
+## Etapa 2 - Exploración científica (Módulo 2)
+**Meta:** entender estructura del problema y formular hipótesis refinadas.
 
-## Typical Programmatic Usage
+Incluye:
+- Estadística descriptiva y distribuciones.
+- Relaciones entre variables (correlaciones).
+- Reducción de dimensionalidad (ej. PCA/UMAP).
+- Identificación de patrones por estación/profundidad.
 
-```python
-from src.ingestion.universal_data_ingestor import UniversalDataIngestor
+## Etapa 3 - Modelado IA explicable (Módulo 3)
+**Meta:** modelar sin perder interpretabilidad científica.
 
-schema = {
-    "V_(ppm)": "ppm",
-    "Cr_(ppm)": "ppm",
-    "Mn_(ppm)": "ppm",
-    "Fe_(%)": "%",
-    "Pb_(ppm)": "ppm",
-}
+Incluye:
+- Modelos base y robustos (árboles, ensamblados).
+- Validación y comparación de desempeño.
+- Explicabilidad (SHAP / importancia de variables).
 
-ingestor = UniversalDataIngestor(
-    analyte_schema=schema,
-    censored_value_strategy="lod_half",
-    generate_quality_report=True,
-)
+## Etapa 4 - Integración y reporte final (Módulo 4)
+**Meta:** empaquetar resultados para tesis y uso práctico.
 
-result = ingestor.run("data/raw/your_dataset.xlsx")
-clean_data = result["data"]
-metadata = result["metadata"]
-```
+Incluye:
+- Reporte final metodológico + resultados.
+- Visualizaciones clave.
+- Conclusiones y recomendaciones.
 
-## Project Layout
+## 5) Proceso completo (cómo funciona)
 
-```
-AEDA - Framework/
-├── config/
-├── data/
-│   ├── raw/
-│   └── processed/
-├── docs/
-├── logs/
-├── notebooks/
-├── tests/
-│   ├── unit/
-│   └── validation/
-├── src/
-│   ├── ingestion/
-│   ├── preprocessing/
-│   ├── pipeline/
-│   ├── exporting/
-│   └── utils/
-├── main.py
-├── main_ingestion.py
-├── ingestion_examples.py
-└── setup_env.ps1
-```
+1. **Entrada:** archivo laboratorio (`RAW`) con símbolos, faltantes e incertidumbres.
+2. **Ingesta:** parsing + normalización + censura + unidades.
+3. **QA/QC:** aplicación de criterios de aceptación.
+4. **Dataset validado:** versión base para análisis.
+5. **EDA:** patrones y estructura de datos.
+6. **ML explicable:** modelos + interpretación.
+7. **Salida final:** evidencia científica y técnica reproducible.
 
-## Additional Documentation
+## 6) Tecnologías de IA/analítica por módulo
 
-- `docs/INGESTION_MODULE_GUIDE.md` for researcher-facing usage
-- `docs/IMPLEMENTATION_SUMMARY.md` for technical implementation details
+- **Módulo 1:** reglas estadísticas para censura + validación de calidad.
+- **Módulo 2:** técnicas de exploración (PCA/UMAP, clustering opcional).
+- **Módulo 3:** modelos supervisados e interpretabilidad (SHAP).
+- **Módulo 4:** automatización de reportes y visualización.
 
-## Language Policy
+## 7) Rol del científico vs rol del desarrollo
 
-All new development, comments, and documentation are maintained in **English**.
+## Dónde la opinión del científico es imprescindible
+- Definir reglas oficiales de censura por analito.
+- Confirmar unidades y conversiones válidas.
+- Establecer criterios QA/QC de aprobación.
+- Priorizar objetivo científico y validar interpretación.
+
+## Dónde depende más de ti (desarrollo)
+- Implementación del pipeline y arquitectura modular.
+- Automatización de validaciones y reportes.
+- Trazabilidad, reproducibilidad y pruebas.
+- Integración técnica entre módulos.
+
+## Decisiones compartidas
+- Selección final de variables para modelado.
+- Umbrales prácticos cuando no hay norma cerrada.
+- Definición de entregables intermedios por hito.
+
+## 8) Preguntas clave para reunión con tutor
+
+1. ¿Regla oficial por analito para `<LOD`, `>LOQ/AQL` y `±`?
+2. ¿Unidad final oficial por analito y reglas de conversión?
+3. ¿Criterios QA/QC para aprobar dataset?
+4. ¿Diccionario oficial de columnas ISOVIDA?
+5. ¿Cuál es el objetivo científico #1 de esta fase?
+
+## 9) Cómo usar este README (cada semana)
+
+- Actualiza el estado de cada etapa (✅ / 🔄 / ⛔).
+- Registra decisiones cerradas con tutor.
+- Define 1 objetivo técnico y 1 objetivo científico por semana.
+- No avances a la siguiente etapa si la anterior no está metodológicamente cerrada.
+
+## 10) Archivos guía importantes
+
+- `docs/INGESTA_CONCEPTOS_CLAVE_README.md`
+- `docs/ISOVIDA_DATASET_README.md`
+- `docs/INGESTION_MODULE_GUIDE.md`
+- `docs/IMPLEMENTATION_SUMMARY.md`
+- `tests/unit/`
+- `tests/validation/`
+
+## 11) Definición de éxito de la tesis
+
+La tesis está bien cerrada cuando:
+- El pipeline corre de inicio a fin con reglas explícitas.
+- Las decisiones metodológicas son reproducibles y defendibles.
+- Los resultados responden una pregunta científica prioritaria.
+- Queda documentación suficiente para replicar el proceso.

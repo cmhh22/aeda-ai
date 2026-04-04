@@ -27,32 +27,43 @@ def validate_isovida_ingestion() -> bool:
     print("=" * 80 + "\n")
 
     elements_schema = {
-        "V_(ppm)": "ppm",
-        "Cr_(ppm)": "ppm",
-        "Mn_(ppm)": "ppm",
-        "Fe_(%)": "%",
-        "Co_ppm": "ppm",
-        "Ni_(ppm)": "ppm",
-        "Cu_(ppm)": "ppm",
-        "Zn_(ppm)": "ppm",
-        "Ga_(ppm)": "ppm",
-        "As_(ppm)": "ppm",
-        "Rb_(ppm)": "ppm",
-        "Sr_(ppm)": "ppm",
-        "Zr_(ppm)": "ppm",
-        "Ba_(ppm)": "ppm",
-        "Pb_(ppm)": "ppm",
+        "Na": "%",
+        "Mg": "%",
+        "Al": "%",
+        "Si": "%",
+        "K": "%",
+        "Ca": "%",
+        "Fe": "%",
+        "P": "ppm",
+        "S": "ppm",
+        "Cl": "ppm",
+        "Sc": "ppm",
+        "Ti": "ppm",
+        "V": "ppm",
+        "Cr": "ppm",
+        "Mn": "ppm",
+        "Co": "ppm",
+        "Ni": "ppm",
+        "Cu": "ppm",
+        "Zn": "ppm",
+        "Ga": "ppm",
+        "As": "ppm",
+        "Br": "ppm",
+        "Rb": "ppm",
+        "Sr": "ppm",
+        "Y": "ppm",
+        "Zr": "ppm",
+        "Nb": "ppm",
+        "Mo": "ppm",
+        "Ba": "ppm",
+        "Pb": "ppm",
     }
 
     metadata_cols = {
-        "Code", "Site_Name", "Sampling_Date", "Site_Code", "Core",
-        "Coord_Latitud", "Coord.Longitud",
-        "Granulometry(< 2 µm)_%",
-        "Granulometry(2 < G < 67 µm)_%",
-        "Granulometry(> 63 µm)_%",
-        "PPI_550ºC (%)",
-        "pH",
-        "Humity_Content(%)",
+        "No", "Code", "Pret_Code", "Código_muestra", "Sitio_muestreo",
+        "Fecha_muestreo", "Core", "Latitud", "Longitud", "Profundidad",
+        "< 2 µm", "U_< 2 µm", "2 < G < 63 µm", "U_2 < G < 63 µm",
+        "> 63 µm", "U_> 63 µm", "PPI550", "U_PPI550", "PPI950", "U_PPI950", "HC",
     }
 
     print("1. Creating UniversalDataIngestor...")
@@ -62,12 +73,13 @@ def validate_isovida_ingestion() -> bool:
         target_unit="ppm",
         strict_schema=False,
         censored_value_strategy="lod_half",
+        apply_censored_handling=False,
         generate_quality_report=True,
     )
     print("   [OK] Ingestor created successfully\n")
 
-    print("2. Ingesting BD_ISOVIDA dataset...")
-    file_path = ROOT / "data" / "raw" / "BD_ISOVIDA_MANGLARES2023_version250226. Entregarxlsx.xlsx"
+    print("2. Ingesting rectified BD_ISOVIDA dataset...")
+    file_path = ROOT / "data" / "raw" / "BD_ISOVIDA_MANGLARES2023_rectificadaYBA_230326.xlsx"
 
     try:
         result = ingestor.run(str(file_path), matrix_type_hint="sediment")
@@ -95,12 +107,12 @@ def validate_isovida_ingestion() -> bool:
     print("5. Data transformation example:")
     print("\n   RAW data sample (first element column):")
     raw_data = result.get("raw_data")
-    if raw_data is not None and "V_(ppm)" in raw_data.columns:
-        print("   " + str(raw_data["V_(ppm)"].head(3).tolist()))
+    if raw_data is not None and "V" in raw_data.columns:
+        print("   " + str(raw_data["V"].head(3).tolist()))
 
     print("\n   PROCESSED data sample (first element column):")
-    if "V_(ppm)" in data.columns:
-        print("   " + str(data["V_(ppm)"].head(3).tolist()))
+    if "V" in data.columns:
+        print("   " + str(data["V"].head(3).tolist()))
     print()
 
     print("6. Quality report:")
@@ -124,8 +136,9 @@ def validate_isovida_ingestion() -> bool:
     numeric_cols = data.select_dtypes(include=["number"]).columns
     print(f"   [OK] Numeric columns: {len(numeric_cols)}")
 
-    negative_count = (data[numeric_cols] < 0).sum().sum()
-    print(f"   [OK] Negative values: {negative_count}")
+    analyte_cols = [col for col in elements_schema if col in data.columns]
+    negative_count = (data[analyte_cols] < 0).sum().sum() if analyte_cols else 0
+    print(f"   [OK] Negative values in analytes: {negative_count}")
 
     print("\n   Sample statistics:")
     for column in list(numeric_cols)[:5]:

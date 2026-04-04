@@ -19,16 +19,16 @@ if __name__ == "__main__":
     print("=" * 80 + "\n")
 
     elements_schema = {
-        "V_(ppm)": "ppm",
-        "Cr_(ppm)": "ppm",
-        "Mn_(ppm)": "ppm",
-        "Fe_(%)": "%",
-        "Co_ppm": "ppm",
-        "Ni_(ppm)": "ppm",
-        "Cu_(ppm)": "ppm",
-        "Zn_(ppm)": "ppm",
-        "As_(ppm)": "ppm",
-        "Pb_(ppm)": "ppm",
+        "V": "ppm",
+        "Cr": "ppm",
+        "Mn": "ppm",
+        "Fe": "%",
+        "Co": "ppm",
+        "Ni": "ppm",
+        "Cu": "ppm",
+        "Zn": "ppm",
+        "As": "ppm",
+        "Pb": "ppm",
     }
 
     print("1. Creating ingestor...")
@@ -36,12 +36,13 @@ if __name__ == "__main__":
         analyte_schema=elements_schema,
         target_unit="ppm",
         censored_value_strategy="lod_half",
+        apply_censored_handling=False,
         generate_quality_report=True,
     )
     print("   OK - Ingestor created\n")
 
     print("2. Loading data...")
-    file_path = ROOT / "data" / "raw" / "BD_ISOVIDA_MANGLARES2023_version250226. Entregarxlsx.xlsx"
+    file_path = ROOT / "data" / "raw" / "BD_ISOVIDA_MANGLARES2023_rectificadaYBA_230326.xlsx"
 
     try:
         result = ingestor.run(str(file_path), matrix_type_hint="sediment")

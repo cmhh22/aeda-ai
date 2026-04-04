@@ -27,3 +27,46 @@ standardization:
   high_skew_threshold: 1.0
   normaltest_alpha: 0.05
   epsilon: 0.000001
+
+isovida_rectificada:
+  file_path: data/raw/BD_ISOVIDA_MANGLARES2023_rectificadaYBA_230326.xlsx
+  sheet_name: DATA
+  matrix_type_hint: sediment
+  apply_censored_handling: false
+  censored_strategy: lod_half
+  objective_priority: gradient_by_depth
+  metadata_columns:
+    - No
+    - Code
+    - Pret_Code
+    - Código_muestra
+    - Sitio_muestreo
+    - Fecha_muestreo
+    - Core
+    - Latitud
+    - Longitud
+    - Profundidad
+    - < 2 µm
+    - U_< 2 µm
+    - 2 < G < 63 µm
+    - U_2 < G < 63 µm
+    - > 63 µm
+    - U_> 63 µm
+    - PPI550
+    - U_PPI550
+    - PPI950
+    - U_PPI950
+    - HC
+  qaqc:
+    max_missing_per_column_pct: 30.0
+    max_missing_per_row_pct: 35.0
+    outlier_policy: flag_and_review
+    duplicate_policy: keep_first_and_log
+    repeated_value_policy: flag_low_variability_variables
+  decisions_pending_with_tutor:
+    - uncertainty_use_for_U_columns
+    - final_units_per_analyte
+    - final_qaqc_thresholds
+  methodological_notes:
+    - In rectified ISOVIDA, LOD/LOQ imputation is intentionally excluded from Module 1 scope.
+    - LOD/LOQ treatment is considered investigator-level analysis if needed in future studies.

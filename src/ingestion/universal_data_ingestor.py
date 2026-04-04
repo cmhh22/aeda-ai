@@ -49,6 +49,7 @@ class UniversalDataIngestor(DataComponent):
         target_unit: str = "ppm",
         strict_schema: bool = False,
         censored_value_strategy: Literal["lod_half", "ros", "qmle", "percentile"] = "lod_half",
+        apply_censored_handling: bool = True,
         generate_quality_report: bool = True,
         logger: logging.Logger | None = None,
     ) -> None:
@@ -57,6 +58,7 @@ class UniversalDataIngestor(DataComponent):
         self.target_unit = target_unit
         self.strict_schema = strict_schema
         self.censored_value_strategy = censored_value_strategy
+        self.apply_censored_handling = apply_censored_handling
         self.generate_quality_report = generate_quality_report
         self.logger = logger or logging.getLogger(__name__)
         self.matrix_detector = MatrixTypeDetector(logger=self.logger)
@@ -113,25 +115,34 @@ class UniversalDataIngestor(DataComponent):
             confidence_threshold=0.5
         )
         
-        # Step 3: Handle censored values (BDL/AQL)
+        # Step 3: Handle censored values (BDL/AQL) only when this scope is enabled.
         censored_handler = CensoredValueHandler(
             imputation_strategy=self.censored_value_strategy,
             logger=self.logger
         )
-        
-        # For each chemical column, apply censored value handling
         censored_metadata = []
-        for col in self.analyte_schema.keys() if isinstance(self.analyte_schema, dict) else self.analyte_schema:
-            if col in processed_data.columns:
-                # Try to infer LOD from metadata or use a reasonable default
-                lod = self._infer_lod(processed_data[col])
-                processed_data[col] = censored_handler.handle_column(
-                    processed_data[col],
-                    col,
-                    lod
-                )
-        
-        censored_metadata = censored_handler.metadata
+        if self.apply_censored_handling:
+            # Apply censored handling only when explicit notation was detected (<LOD or >LOQ/AQL).
+            # This avoids reclassifying naturally low numeric values as censored.
+            parsing_flags = quality_flags if isinstance(quality_flags, dict) else {}
+            for col in self.analyte_schema.keys() if isinstance(self.analyte_schema, dict) else self.analyte_schema:
+                if col in processed_data.columns:
+                    column_flags = parsing_flags.get(col, {}) if isinstance(parsing_flags, dict) else {}
+                    has_explicit_censoring = bool(
+                        column_flags.get("lt_lod", 0) or column_flags.get("gt_limit", 0)
+                    )
+                    if not has_explicit_censoring:
+                        continue
+
+                    # Try to infer LOD from metadata or use a reasonable default
+                    lod = self._infer_lod(processed_data[col])
+                    processed_data[col] = censored_handler.handle_column(
+                        processed_data[col],
+                        col,
+                        lod
+                    )
+
+            censored_metadata = censored_handler.metadata
         self.logger.info(f"Censored values handled: {len(censored_metadata)} columns processed")
         
         # Step 4: Generate quality report
@@ -151,6 +162,7 @@ class UniversalDataIngestor(DataComponent):
             "matrix_type_detected": detected_matrix,
             "matrix_type_confidence": matrix_profile["confidence"],
             "matrix_detection_indicators": matrix_profile["indicators"],
+            "apply_censored_handling": self.apply_censored_handling,
             "censored_value_strategy": self.censored_value_strategy,
             "source": "UniversalDataIngestor",
         }

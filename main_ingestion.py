@@ -27,49 +27,45 @@ def main_ingestion_example():
     print("AEDA FRAMEWORK - MODULE 1: UNIVERSAL INGESTION")
     print("="*80)
     
-    # Define schema of elements from FRX analysis
+    # Define schema of elements for the rectified ISOVIDA DATA sheet
     elements_schema = {
-        "Na_(%)": "%",
-        "Mg_(%)": "%",
-        "Al_(%)": "%",
-        "Si_(%)": "%",
-        "P_(ppm)": "ppm",
-        "S_(ppm)": "ppm",
-        "Cl_(ppm)": "ppm",
-        "K_(%)": "%",
-        "Ca_(%)": "%",
-        "Sc_(ppm)": "ppm",
-        "Ti_(ppm)": "ppm",
-        "V_(ppm)": "ppm",
-        "Cr_(ppm)": "ppm",
-        "Mn_(ppm)": "ppm",
-        "Fe_(%)": "%",
-        "Co_ppm": "ppm",
-        "Ni_(ppm)": "ppm",
-        "Cu_(ppm)": "ppm",
-        "Zn_(ppm)": "ppm",
-        "Ga_(ppm)": "ppm",
-        "As_(ppm)": "ppm",
-        "Br_(ppm)": "ppm",
-        "Rb_(ppm)": "ppm",
-        "Sr_(ppm)": "ppm",
-        "Y_(ppm)": "ppm",
-        "Zr_(ppm)": "ppm",
-        "Nb_(ppm)": "ppm",
-        "Mo_(ppm)": "ppm",
-        "Ba_(ppm)": "ppm",
-        "Pb_(ppm)": "ppm",
+        "Na": "%",
+        "Mg": "%",
+        "Al": "%",
+        "Si": "%",
+        "K": "%",
+        "Ca": "%",
+        "Fe": "%",
+        "P": "ppm",
+        "S": "ppm",
+        "Cl": "ppm",
+        "Sc": "ppm",
+        "Ti": "ppm",
+        "V": "ppm",
+        "Cr": "ppm",
+        "Mn": "ppm",
+        "Co": "ppm",
+        "Ni": "ppm",
+        "Cu": "ppm",
+        "Zn": "ppm",
+        "Ga": "ppm",
+        "As": "ppm",
+        "Br": "ppm",
+        "Rb": "ppm",
+        "Sr": "ppm",
+        "Y": "ppm",
+        "Zr": "ppm",
+        "Nb": "ppm",
+        "Mo": "ppm",
+        "Ba": "ppm",
+        "Pb": "ppm",
     }
     
     metadata_cols = {
-        "Code", "Site_Name", "Sampling_Date", "Site_Code", "Core",
-        "Coord_Latitud", "Coord.Longitud",
-        "Granulometry(< 2 µm)_%",
-        "Granulometry(2 < G < 67 µm)_%",
-        "Granulometry(> 63 µm)_%",
-        "PPI_550ºC (%)",
-        "pH",
-        "Humity_Content(%)",
+        "No", "Code", "Pret_Code", "Código_muestra", "Sitio_muestreo",
+        "Fecha_muestreo", "Core", "Latitud", "Longitud", "Profundidad",
+        "< 2 µm", "U_< 2 µm", "2 < G < 63 µm", "U_2 < G < 63 µm",
+        "> 63 µm", "U_> 63 µm", "PPI550", "U_PPI550", "PPI950", "U_PPI950", "HC",
     }
     
     # Create ingestor
@@ -80,13 +76,14 @@ def main_ingestion_example():
         target_unit="ppm",
         strict_schema=False,
         censored_value_strategy="lod_half",
+        apply_censored_handling=False,
         generate_quality_report=True,
     )
     print("   OK - Ingestor ready\n")
     
     # Process data
-    print("2. Processing BD_ISOVIDA data...")
-    file_path = "data/raw/BD_ISOVIDA_MANGLARES2023_version250226. Entregarxlsx.xlsx"
+    print("2. Processing rectified BD_ISOVIDA data...")
+    file_path = "data/raw/BD_ISOVIDA_MANGLARES2023_rectificadaYBA_230326.xlsx"
     
     try:
         result = ingestor.run(
