@@ -35,6 +35,7 @@ Thumbs.db
 *.pkl
 *.xlsx
 *.xls
+!data/BD_ISOVIDA_MANGLARES2023_rectificadaYBA_230326.xlsx
 
 # Logs
 *.log
