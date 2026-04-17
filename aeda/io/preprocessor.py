@@ -1,11 +1,11 @@
 """
 aeda.io.preprocessor
-Preprocesamiento de datos ambientales:
-- Limpieza y filtrado
-- Imputación inteligente (respeta diseño experimental)
-- Escalado (StandardScaler, MinMax, Robust)
-- Transformaciones composicionales (CLR para datos FRX)
-- Encoding de variables categóricas
+Environmental data preprocessing:
+- Cleaning and filtering
+- Smart imputation (respects experimental design)
+- Scaling (StandardScaler, MinMax, Robust)
+- Compositional transforms (CLR for FRX data)
+- Categorical variable encoding
 """
 
 import pandas as pd
@@ -18,14 +18,14 @@ from sklearn.impute import SimpleImputer, KNNImputer
 
 @dataclass
 class PreprocessingLog:
-    """Registro de todas las transformaciones aplicadas (reproducibilidad)."""
+    """Record of all applied transformations (reproducibility)."""
     steps: list[dict] = field(default_factory=list)
 
     def add(self, step: str, details: dict):
         self.steps.append({"step": step, **details})
 
     def summary(self) -> str:
-        lines = [f"Pipeline de preprocesamiento ({len(self.steps)} pasos):"]
+        lines = [f"Preprocessing pipeline ({len(self.steps)} steps):"]
         for i, s in enumerate(self.steps, 1):
             step_name = s.pop("step", "?")
             lines.append(f"  {i}. {step_name}: {s}")
@@ -39,8 +39,8 @@ def select_numeric(
     exclude_prefixes: tuple[str, ...] = ("U_", "u_"),
 ) -> pd.DataFrame:
     """
-    Selecciona solo columnas numéricas de medición,
-    excluyendo coordenadas, IDs, y columnas de incertidumbre.
+    Select numeric measurement columns only,
+    excluding coordinates, IDs, and uncertainty columns.
     """
     numeric = df.select_dtypes(include="number")
     drop = []
@@ -53,7 +53,7 @@ def select_numeric(
 
 
 def drop_constant_columns(df: pd.DataFrame, log: Optional[PreprocessingLog] = None) -> pd.DataFrame:
-    """Elimina columnas con varianza cero."""
+    """Remove columns with zero variance."""
     constant = [c for c in df.columns if df[c].nunique() <= 1]
     if constant and log:
         log.add("drop_constant", {"columns": constant})
@@ -68,18 +68,22 @@ def handle_missing(
     log: Optional[PreprocessingLog] = None,
 ) -> pd.DataFrame:
     """
-    Maneja datos faltantes con estrategia configurable.
+    Handle missing values with a configurable strategy.
 
     Parameters
     ----------
-    df : DataFrame con datos numéricos
-    strategy : Estrategia de imputación
-    threshold_col : Elimina columnas con más de este % de nulos (0-1)
-    threshold_row : Elimina filas con más de este % de nulos (0-1)
+    df : pd.DataFrame
+        DataFrame with numeric data.
+    strategy : Literal["drop_rows", "drop_cols", "mean", "median", "knn"]
+        Imputation strategy.
+    threshold_col : float
+        Drop columns with a missing fraction above this threshold (0-1).
+    threshold_row : float
+        Drop rows with a missing fraction above this threshold (0-1).
     """
     original_shape = df.shape
 
-    # Primero: eliminar columnas con demasiados nulos
+    # First: drop columns with too many missing values
     null_pct_col = df.isnull().mean()
     high_null_cols = null_pct_col[null_pct_col > threshold_col].index.tolist()
     if high_null_cols:
@@ -90,7 +94,7 @@ def handle_missing(
                 "threshold": threshold_col,
             })
 
-    # Segundo: eliminar filas con demasiados nulos
+    # Second: drop rows with too many missing values
     null_pct_row = df.isnull().mean(axis=1)
     high_null_rows = null_pct_row[null_pct_row > threshold_row].index.tolist()
     if high_null_rows:
@@ -101,8 +105,9 @@ def handle_missing(
                 "threshold": threshold_row,
             })
 
-    # Tercero: imputar lo restante
+    # Third: impute remaining missing values
     if df.isnull().any().any():
+        valid_strategies = ("drop_rows", "drop_cols", "mean", "median", "knn")
         if strategy == "drop_rows":
             df = df.dropna()
         elif strategy == "drop_cols":
@@ -113,6 +118,11 @@ def handle_missing(
         elif strategy == "knn":
             imputer = KNNImputer(n_neighbors=5)
             df = pd.DataFrame(imputer.fit_transform(df), columns=df.columns, index=df.index)
+        else:
+            raise ValueError(
+                f"Unsupported impute_strategy: '{strategy}'. "
+                f"Valid options: {valid_strategies}"
+            )
 
         if log:
             log.add("impute", {"strategy": strategy, "shape_before": original_shape, "shape_after": df.shape})
@@ -126,12 +136,12 @@ def scale(
     log: Optional[PreprocessingLog] = None,
 ) -> tuple[pd.DataFrame, object]:
     """
-    Escala los datos numéricos.
+    Scale numeric data.
 
     Returns
     -------
-    tuple[pd.DataFrame, scaler]
-        DataFrame escalado y el objeto scaler para inversa.
+    tuple[pd.DataFrame, object]
+        Scaled DataFrame and fitted scaler object for inverse transforms.
     """
     scalers = {
         "standard": StandardScaler,
@@ -156,11 +166,11 @@ def log_transform(
     log: Optional[PreprocessingLog] = None,
 ) -> pd.DataFrame:
     """
-    Transformación logarítmica para variables con distribución sesgada.
-    Usa log(x + offset) para manejar ceros.
+    Log transform for skewed variables.
+    Uses log(x + offset) to handle zeros.
     """
     if cols is None:
-        # Auto-detectar columnas con alto skewness
+        # Auto-detect highly skewed columns
         skew = df.skew()
         cols = skew[skew.abs() > 2.0].index.tolist()
 
@@ -181,20 +191,22 @@ def clr_transform(
     log: Optional[PreprocessingLog] = None,
 ) -> pd.DataFrame:
     """
-    Centered Log-Ratio transform para datos composicionales.
-    Esencial para datos de FRX donde las concentraciones suman ~100%.
+    Centered Log-Ratio transform for compositional data.
+    Essential for FRX datasets where concentrations sum to ~100%.
 
     Parameters
     ----------
-    df : DataFrame con datos composicionales (solo columnas numéricas positivas)
-    cols : Columnas a transformar. Si None, usa todas.
+    df : pd.DataFrame
+        DataFrame with compositional data (positive numeric columns only).
+    cols : list[str], optional
+        Columns to transform. If None, all columns are used.
     """
     if cols is None:
         cols = df.columns.tolist()
 
     comp = df[cols].copy()
 
-    # Reemplazar ceros con un valor pequeño (multiplicative replacement)
+    # Replace zeros with a small value (multiplicative replacement)
     min_nonzero = comp[comp > 0].min().min()
     comp = comp.replace(0, min_nonzero * 0.65)
 
@@ -222,41 +234,49 @@ def preprocess(
     clr_cols: Optional[list[str]] = None,
 ) -> tuple[pd.DataFrame, PreprocessingLog, Optional[object]]:
     """
-    Pipeline de preprocesamiento completo.
+    Full preprocessing pipeline.
 
     Parameters
     ----------
-    df : DataFrame crudo (solo columnas numéricas de medición)
-    exclude_cols : Columnas a excluir del análisis
-    impute_strategy : Estrategia de imputación
-    scale_method : Método de escalado
-    apply_log : Aplicar log-transform a variables sesgadas
-    apply_clr : Aplicar CLR transform (para datos composicionales FRX)
-    clr_cols : Columnas para CLR. Si None y apply_clr=True, usa todas.
+    df : pd.DataFrame
+        Raw DataFrame (numeric measurement columns only).
+    exclude_cols : list[str], optional
+        Columns to exclude from analysis.
+    impute_strategy : str
+        Imputation strategy.
+    scale_method : str
+        Scaling method.
+    apply_log : bool
+        Whether to apply log-transform to skewed variables.
+    apply_clr : bool
+        Whether to apply CLR transform (for FRX compositional data).
+    clr_cols : list[str], optional
+        Columns for CLR. If None and apply_clr=True, all are used.
 
     Returns
     -------
-    tuple[pd.DataFrame, PreprocessingLog, scaler]
+    tuple[pd.DataFrame, PreprocessingLog, Optional[object]]
+        Processed data, preprocessing log, and fitted scaler.
     """
     proc_log = PreprocessingLog()
 
-    # 1. Seleccionar numéricas
+    # 1. Select numeric data
     data = select_numeric(df, exclude_cols=exclude_cols)
     proc_log.add("select_numeric", {"n_features": len(data.columns), "columns": data.columns.tolist()})
 
-    # 2. Eliminar constantes
+    # 2. Drop constant columns
     data = drop_constant_columns(data, log=proc_log)
 
-    # 3. Manejar faltantes
+    # 3. Handle missing values
     data = handle_missing(data, strategy=impute_strategy, log=proc_log)
 
-    # 4. Transformaciones opcionales
+    # 4. Optional transforms
     if apply_clr:
         data = clr_transform(data, cols=clr_cols, log=proc_log)
     elif apply_log:
         data = log_transform(data, log=proc_log)
 
-    # 5. Escalar
+    # 5. Scale
     data, scaler = scale(data, method=scale_method, log=proc_log)
 
     return data, proc_log, scaler

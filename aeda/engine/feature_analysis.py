@@ -1,7 +1,7 @@
 """
 aeda.engine.feature_analysis
-Análisis de importancia de variables y su contribución al patrón de datos.
-Random Forest importance, permutation importance.
+Feature importance analysis and contribution to data structure.
+Random Forest importance and permutation importance.
 """
 
 import numpy as np
@@ -14,9 +14,9 @@ from sklearn.inspection import permutation_importance
 
 @dataclass
 class FeatureImportanceResult:
-    """Resultado del análisis de importancia de variables."""
+    """Result of a feature importance analysis."""
     method: str
-    importances: pd.Series  # variable -> importancia (ordenada)
+    importances: pd.Series  # feature -> importance (sorted)
     target_variable: str
     diagnostics: dict = field(default_factory=dict)
 
@@ -25,9 +25,15 @@ class FeatureImportanceResult:
 
 
 def rank_by_variance(df: pd.DataFrame) -> pd.Series:
-    """Ranking simple por varianza (coeficiente de variación)."""
-    cv = df.std() / df.mean().abs().replace(0, np.nan)
-    return cv.sort_values(ascending=False).rename("cv")
+    """
+    Rank features by variance.
+
+    Note: if data is already standardized (mean ~ 0, std ~ 1),
+    CV is not meaningful. Plain variance is always well-defined and
+    remains interpretable regardless of scaling.
+    """
+    variance = df.var()
+    return variance.sort_values(ascending=False).rename("variance")
 
 
 def rank_by_rf_importance(
@@ -38,13 +44,16 @@ def rank_by_rf_importance(
     random_state: int = 42,
 ) -> FeatureImportanceResult:
     """
-    Calcula importancia de variables usando Random Forest.
+    Compute feature importance using Random Forest.
 
     Parameters
     ----------
-    df : DataFrame con todas las variables (features + target)
-    target : Nombre de la columna target
-    task : 'classification', 'regression', o 'auto' (infiere del target)
+    df : pd.DataFrame
+        DataFrame with all variables (features + target).
+    target : str
+        Target column name.
+    task : str
+        'classification', 'regression', or 'auto' (inferred from target).
     """
     X = df.drop(columns=[target])
     y = df[target]
@@ -64,7 +73,7 @@ def rank_by_rf_importance(
         index=X.columns,
     ).sort_values(ascending=False)
 
-    # Permutation importance para validar
+    # Permutation importance for cross-checking
     perm = permutation_importance(model, X, y, n_repeats=10, random_state=random_state)
     perm_importances = pd.Series(
         perm.importances_mean,
@@ -90,8 +99,8 @@ def rank_by_cluster_discrimination(
     labels: np.ndarray,
 ) -> FeatureImportanceResult:
     """
-    Calcula qué variables contribuyen más a discriminar entre clusters.
-    Usa RF con los cluster labels como target.
+    Compute which variables contribute most to separating clusters.
+    Uses Random Forest with cluster labels as target.
     """
     df_with_labels = df.copy()
     df_with_labels["_cluster"] = labels
@@ -110,18 +119,18 @@ def analyze_features(
     method: Literal["auto", "variance", "random_forest"] = "auto",
 ) -> FeatureImportanceResult:
     """
-    Interfaz unificada.
-    Si target es dado, usa RF con ese target.
-    Si cluster_labels es dado, analiza discriminación entre clusters.
-    Si ninguno, usa varianza como proxy.
+    Unified interface.
+    If target is provided, uses Random Forest with that target.
+    If cluster_labels is provided, analyzes discrimination between clusters.
+    If neither is provided, uses variance as a proxy.
     """
     if method == "variance":
         variance_ranking = rank_by_variance(df)
         return FeatureImportanceResult(
-            method="Coefficient of Variation",
+            method="Variance",
             importances=variance_ranking,
-            target_variable="(ninguno - ranking por variabilidad)",
-            diagnostics={"method": "cv", "n_features": len(df.columns)},
+            target_variable="(none - variability-based ranking)",
+            diagnostics={"method": "variance", "n_features": len(df.columns)},
         )
 
     if target and target in df.columns:
@@ -131,8 +140,8 @@ def analyze_features(
     else:
         variance_ranking = rank_by_variance(df)
         return FeatureImportanceResult(
-            method="Coefficient of Variation",
+            method="Variance",
             importances=variance_ranking,
-            target_variable="(ninguno - ranking por variabilidad)",
-            diagnostics={"method": "cv", "n_features": len(df.columns)},
+            target_variable="(none - variability-based ranking)",
+            diagnostics={"method": "variance", "n_features": len(df.columns)},
         )

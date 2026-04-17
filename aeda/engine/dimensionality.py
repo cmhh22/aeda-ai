@@ -208,31 +208,27 @@ def reduce(
     """
     Unified interface for dimensionality reduction.
 
-    If method='auto':
-    - Uses PCA when n_features < 15 or n_samples < 50
-    - Uses UMAP if available, otherwise t-SNE
+    If method='auto', PCA is always used. PCA is the canonical EDA method:
+    it explains variance, produces interpretable loadings for biplots, and
+    works reliably on typical environmental datasets. For nonlinear
+    visualizations, pass method='tsne' or method='umap' explicitly.
 
     Parameters
     ----------
     df : pd.DataFrame
         Scaled DataFrame with numeric variables.
     method : Literal["pca", "tsne", "umap", "auto"]
-        Dimensionality reduction method.
+        Dimensionality reduction method. 'auto' resolves to 'pca'.
     n_components : int, optional
         Number of components (None = automatic behavior).
     **kwargs
         Extra parameters for the selected method.
     """
     if method == "auto":
-        n_feat, n_samp = df.shape[1], df.shape[0]
-        if n_feat < 15 or n_samp < 50:
-            method = "pca"
-        else:
-            try:
-                import umap  # noqa: F401
-                method = "umap"
-            except ImportError:
-                method = "tsne"
+        # For environmental EDA, PCA is the canonical first choice:
+        # it provides interpretable loadings for biplots, explains variance,
+        # and works reliably on typical dataset sizes.
+        method = "pca"
 
     if method == "pca":
         return run_pca(df, n_components=n_components, **kwargs)
