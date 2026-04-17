@@ -21,6 +21,7 @@ dependencies = [
 umap = ["umap-learn>=0.5"]
 shap = ["shap>=0.42"]
 ui = ["streamlit>=1.28"]
+export = ["kaleido>=0.2"]
 all = ["umap-learn>=0.5", "shap>=0.42", "streamlit>=1.28"]
 dev = ["pytest>=7.4", "pytest-cov>=4.1"]
 
