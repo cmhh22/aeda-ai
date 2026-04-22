@@ -249,3 +249,81 @@ def depth_profile_grid(
     apply_default_layout(fig, title=title, width=width, height=height)
 
     return fig
+
+
+def depth_profile_with_thresholds(
+    df: pd.DataFrame,
+    metal: str,
+    depth_col: str,
+    site_col: Optional[str] = None,
+    tel: Optional[float] = None,
+    pel: Optional[float] = None,
+    use_noaa_defaults: bool = True,
+    log_scale: bool = True,
+) -> go.Figure:
+    """Depth profile with TEL/PEL reference lines."""
+    from aeda.interpretation.thresholds import get_thresholds
+
+    if use_noaa_defaults and tel is None and pel is None:
+        try:
+            t = get_thresholds(metal)
+            tel = t.tel
+            pel = t.pel
+        except KeyError:
+            pass
+
+    fig = go.Figure()
+
+    if site_col and site_col in df.columns:
+        sites = list(df[site_col].dropna().unique())
+        color_map = get_categorical_colors(sites)
+        for site in sites:
+            sub = df[df[site_col] == site].sort_values(depth_col).dropna(subset=[metal, depth_col])
+            if sub.empty:
+                continue
+            fig.add_trace(
+                go.Scatter(
+                    x=sub[metal],
+                    y=sub[depth_col],
+                    mode="lines+markers",
+                    name=str(site),
+                    line=dict(color=color_map[site]),
+                    marker=dict(size=5),
+                )
+            )
+    else:
+        sub = df.sort_values(depth_col).dropna(subset=[metal, depth_col])
+        fig.add_trace(
+            go.Scatter(
+                x=sub[metal],
+                y=sub[depth_col],
+                mode="lines+markers",
+                line=dict(color=CATEGORICAL_PALETTE[0]),
+                showlegend=False,
+            )
+        )
+
+    if tel is not None:
+        fig.add_vline(
+            x=tel,
+            line=dict(color="#ff7f0e", dash="dash", width=1.5),
+            annotation_text=f"TEL={tel}",
+            annotation_position="top",
+        )
+    if pel is not None:
+        fig.add_vline(
+            x=pel,
+            line=dict(color="#d62728", dash="dash", width=1.5),
+            annotation_text=f"PEL={pel}",
+            annotation_position="top",
+        )
+
+    fig.update_layout(
+        title=f"{metal} — depth profile with TEL/PEL",
+        xaxis_title=f"{metal} (mg/kg)",
+        yaxis_title=depth_col,
+        xaxis=dict(type="log" if log_scale else "linear"),
+        yaxis=dict(autorange="reversed"),
+    )
+    apply_default_layout(fig)
+    return fig

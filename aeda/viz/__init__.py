@@ -33,7 +33,15 @@ from aeda.viz.base import (
 from aeda.viz.clustering import cluster_composition, cluster_scatter
 from aeda.viz.correlations import correlation_heatmap, cross_correlation_heatmap
 from aeda.viz.dimensionality import embedding_scatter, pca_biplot, pca_scree_plot
-from aeda.viz.profiles import depth_profile, depth_profile_grid
+from aeda.viz.interpretation import (
+    contamination_classification_plot,
+    enrichment_factor_depth_plot,
+)
+from aeda.viz.profiles import (
+    depth_profile,
+    depth_profile_grid,
+    depth_profile_with_thresholds,
+)
 
 __all__ = [
     # Base utilities
@@ -55,4 +63,8 @@ __all__ = [
     # Profiles
     "depth_profile",
     "depth_profile_grid",
+    "depth_profile_with_thresholds",
+    # Interpretation
+    "enrichment_factor_depth_plot",
+    "contamination_classification_plot",
 ]
