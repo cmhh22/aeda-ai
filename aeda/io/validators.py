@@ -1,8 +1,8 @@
 """
 aeda.io.validators
-Validación automática de calidad de datos ambientales.
-Detecta problemas comunes: valores fuera de rango, datos faltantes
-con patrón estructurado, composiciones que no suman 100%, etc.
+Automatic environmental data quality validation.
+Detects common issues: out-of-range values, missing data
+with structured patterns, compositions that do not sum to 100%, etc.
 """
 
 import pandas as pd
@@ -44,11 +44,11 @@ class ValidationReport:
 
     def summary(self) -> str:
         lines = [
-            f"Reporte de validación: {self.n_rows} filas × {self.n_cols} columnas",
-            f"Completitud global: {self.completeness_pct:.1f}%",
-            f"Problemas encontrados: {len(self.issues)} "
-            f"({sum(1 for i in self.issues if i.severity == Severity.ERROR)} errores, "
-            f"{sum(1 for i in self.issues if i.severity == Severity.WARNING)} advertencias, "
+            f"Validation report: {self.n_rows} rows × {self.n_cols} columns",
+            f"Overall completeness: {self.completeness_pct:.1f}%",
+            f"Issues found: {len(self.issues)} "
+            f"({sum(1 for i in self.issues if i.severity == Severity.ERROR)} errors, "
+            f"{sum(1 for i in self.issues if i.severity == Severity.WARNING)} warnings, "
             f"{sum(1 for i in self.issues if i.severity == Severity.INFO)} info)",
         ]
         for issue in self.issues:
@@ -57,7 +57,7 @@ class ValidationReport:
 
 
 def _check_missing_pattern(df: pd.DataFrame) -> list[ValidationIssue]:
-    """Detecta si los datos faltantes siguen un patrón estructurado (no aleatorio)."""
+    """Detect whether missing values follow a structured (non-random) pattern."""
     issues = []
     null_cols = [c for c in df.columns if df[c].isnull().any()]
     if not null_cols:
@@ -67,7 +67,7 @@ def _check_missing_pattern(df: pd.DataFrame) -> list[ValidationIssue]:
     null_patterns = null_mask.drop_duplicates()
 
     if len(null_patterns) <= 3 and len(null_cols) > 1:
-        # Los nulos están agrupados en bloques, probablemente por diseño
+        # Missing values are grouped in blocks, likely by experimental design
         for _, pattern in null_patterns.iterrows():
             missing_in = [c for c in null_cols if pattern[c]]
             if missing_in:
@@ -76,9 +76,9 @@ def _check_missing_pattern(df: pd.DataFrame) -> list[ValidationIssue]:
                     column=", ".join(missing_in),
                     severity=Severity.INFO,
                     message=(
-                        f"Patrón de datos faltantes estructurado detectado: "
-                        f"{n_rows} filas con estas columnas vacías simultáneamente. "
-                        f"Probablemente datos no medidos por diseño experimental."
+                        f"Structured missing-data pattern detected: "
+                        f"{n_rows} rows with these columns empty simultaneously. "
+                        f"Likely unmeasured values by experimental design."
                     ),
                     affected_rows=n_rows,
                 ))
@@ -90,7 +90,7 @@ def _check_missing_pattern(df: pd.DataFrame) -> list[ValidationIssue]:
             issues.append(ValidationIssue(
                 column=col,
                 severity=severity,
-                message=f"{n_null} valores faltantes ({pct:.1f}%)",
+                message=f"{n_null} missing values ({pct:.1f}%)",
                 affected_rows=n_null,
             ))
 
@@ -98,7 +98,7 @@ def _check_missing_pattern(df: pd.DataFrame) -> list[ValidationIssue]:
 
 
 def _check_negative_concentrations(df: pd.DataFrame, measurement_cols: list[str]) -> list[ValidationIssue]:
-    """Concentraciones químicas no deben ser negativas."""
+    """Chemical concentrations should not be negative."""
     issues = []
     for col in measurement_cols:
         if col in df.columns and df[col].dtype in ("float64", "int64"):
@@ -107,7 +107,7 @@ def _check_negative_concentrations(df: pd.DataFrame, measurement_cols: list[str]
                 issues.append(ValidationIssue(
                     column=col,
                     severity=Severity.ERROR,
-                    message=f"{n_neg} valores negativos detectados en concentración",
+                    message=f"{n_neg} negative concentration values detected",
                     affected_rows=n_neg,
                 ))
     return issues
@@ -115,14 +115,14 @@ def _check_negative_concentrations(df: pd.DataFrame, measurement_cols: list[str]
 
 def _check_composition_closure(df: pd.DataFrame) -> list[ValidationIssue]:
     """
-    Verifica si las fracciones granulométricas suman ~100%.
-    En datos composicionales (FRX), verifica closure.
+    Check whether granulometric fractions sum to ~100%.
+    In compositional datasets (FRX), this checks closure.
     """
     issues = []
 
-    # Granulometría: buscar columnas de fracciones
+    # Granulometry: look for fraction columns
     gran_patterns = [
-        ("< 2", "2 < G < 63", "> 63"),       # formato ISOVIDA
+        ("< 2", "2 < G < 63", "> 63"),       # ISOVIDA format
         ("clay", "silt", "sand"),
         ("arcilla", "limo", "arena"),
     ]
@@ -146,8 +146,8 @@ def _check_composition_closure(df: pd.DataFrame) -> list[ValidationIssue]:
                         column=", ".join(matched),
                         severity=Severity.WARNING,
                         message=(
-                            f"Fracciones granulométricas no suman ~100% en {n_bad} filas. "
-                            f"Rango: {sums.min():.1f}% - {sums.max():.1f}%"
+                            f"Granulometric fractions do not sum to ~100% in {n_bad} rows. "
+                            f"Range: {sums.min():.1f}% - {sums.max():.1f}%"
                         ),
                         affected_rows=n_bad,
                         details={"min_sum": sums.min(), "max_sum": sums.max(), "mean_sum": sums.mean()},
@@ -158,7 +158,7 @@ def _check_composition_closure(df: pd.DataFrame) -> list[ValidationIssue]:
 
 
 def _check_outliers_iqr(df: pd.DataFrame, measurement_cols: list[str], factor: float = 3.0) -> list[ValidationIssue]:
-    """Detecta outliers extremos usando IQR × factor."""
+    """Detect extreme outliers using IQR × factor."""
     issues = []
     for col in measurement_cols:
         if col not in df.columns:
@@ -176,7 +176,7 @@ def _check_outliers_iqr(df: pd.DataFrame, measurement_cols: list[str], factor: f
             issues.append(ValidationIssue(
                 column=col,
                 severity=Severity.INFO,
-                message=f"{n_out} outliers extremos (IQR×{factor})",
+                message=f"{n_out} extreme outliers (IQR×{factor})",
                 affected_rows=n_out,
                 details={"lower_bound": lower, "upper_bound": upper},
             ))
@@ -184,7 +184,7 @@ def _check_outliers_iqr(df: pd.DataFrame, measurement_cols: list[str], factor: f
 
 
 def _check_constant_columns(df: pd.DataFrame) -> list[ValidationIssue]:
-    """Detecta columnas con varianza cero o casi cero."""
+    """Detect columns with zero or near-zero variance."""
     issues = []
     for col in df.select_dtypes(include="number").columns:
         nunique = df[col].nunique()
@@ -192,14 +192,14 @@ def _check_constant_columns(df: pd.DataFrame) -> list[ValidationIssue]:
             issues.append(ValidationIssue(
                 column=col,
                 severity=Severity.WARNING,
-                message="Columna constante (varianza = 0), será excluida del análisis",
+                message="Constant column (variance = 0), will be excluded from analysis",
                 affected_rows=len(df),
             ))
         elif nunique <= 3:
             issues.append(ValidationIssue(
                 column=col,
                 severity=Severity.INFO,
-                message=f"Columna con muy baja variabilidad ({nunique} valores únicos)",
+                message=f"Column with very low variability ({nunique} unique values)",
                 affected_rows=len(df),
             ))
     return issues
@@ -210,19 +210,19 @@ def validate(
     measurement_cols: Optional[list[str]] = None,
 ) -> ValidationReport:
     """
-    Ejecuta todas las validaciones sobre un DataFrame de datos ambientales.
+    Run all validation checks on an environmental data DataFrame.
 
     Parameters
     ----------
     df : pd.DataFrame
-        DataFrame a validar.
+        DataFrame to validate.
     measurement_cols : list[str], optional
-        Columnas de mediciones numéricas. Si None, usa todas las numéricas.
+        Numeric measurement columns. If None, all numeric columns are used.
 
     Returns
     -------
     ValidationReport
-        Reporte con todos los problemas detectados.
+        Report containing all detected issues.
     """
     if measurement_cols is None:
         measurement_cols = df.select_dtypes(include="number").columns.tolist()

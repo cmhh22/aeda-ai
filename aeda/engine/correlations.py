@@ -1,7 +1,7 @@
 """
 aeda.engine.correlations
-Análisis de correlaciones multi-método para matrices ambientales.
-Pearson, Spearman, y detección de relaciones no-lineales.
+Multi-method correlation analysis for environmental matrices.
+Pearson, Spearman, and nonlinear relationship detection.
 """
 
 import numpy as np
@@ -12,10 +12,10 @@ from dataclasses import dataclass, field
 
 @dataclass
 class CorrelationResult:
-    """Resultado de un análisis de correlaciones."""
+    """Result of a correlation analysis."""
     method: str
     matrix: pd.DataFrame
-    significant_pairs: list = field(default_factory=list)  # pares con |r| > threshold
+    significant_pairs: list = field(default_factory=list)  # pairs with |r| > threshold
     n_strong: int = 0
     n_moderate: int = 0
     diagnostics: dict = field(default_factory=dict)
@@ -26,7 +26,7 @@ def _extract_significant_pairs(
     threshold_strong: float = 0.7,
     threshold_moderate: float = 0.5,
 ) -> tuple[list[dict], int, int]:
-    """Extrae pares de variables con correlaciones significativas."""
+    """Extract variable pairs with significant correlations."""
     pairs = []
     n_strong = 0
     n_moderate = 0
@@ -60,9 +60,7 @@ def run_correlation(
     threshold_strong: float = 0.7,
     threshold_moderate: float = 0.5,
 ) -> CorrelationResult:
-    """
-    Calcula matriz de correlación y extrae pares significativos.
-    """
+    """Compute a correlation matrix and extract significant pairs."""
     matrix = df.corr(method=method)
     pairs, n_strong, n_moderate = _extract_significant_pairs(
         matrix, threshold_strong, threshold_moderate
@@ -87,13 +85,13 @@ def compare_methods(
     df: pd.DataFrame,
 ) -> dict[str, CorrelationResult]:
     """
-    Ejecuta Pearson y Spearman, y compara los resultados.
-    Diferencias grandes entre ambos sugieren relaciones no-lineales.
+    Run Pearson and Spearman and compare results.
+    Large differences between both suggest nonlinear relationships.
     """
     pearson = run_correlation(df, method="pearson")
     spearman = run_correlation(df, method="spearman")
 
-    # Detectar pares donde Spearman >> Pearson (relación no-lineal)
+    # Detect pairs where Spearman >> Pearson (nonlinear relationship)
     diff_matrix = spearman.matrix.abs() - pearson.matrix.abs()
     nonlinear_candidates = []
 
@@ -123,8 +121,8 @@ def correlate(
     **kwargs,
 ) -> CorrelationResult | dict:
     """
-    Interfaz unificada.
-    method='compare' o 'auto' ejecuta Pearson + Spearman y detecta no-linealidad.
+    Unified interface.
+    method='compare' or 'auto' runs Pearson + Spearman and detects nonlinearity.
     """
     if method in ("compare", "auto"):
         return compare_methods(df)

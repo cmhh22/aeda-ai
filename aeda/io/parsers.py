@@ -1,8 +1,8 @@
 """
 aeda.io.parsers
-Módulo de ingesta de datos ambientales.
-Soporta CSV, Excel (multi-hoja), JSON.
-Detecta automáticamente diccionarios de datos y metadatos.
+Environmental data ingestion module.
+Supports CSV, Excel (multi-sheet), and JSON.
+Automatically detects data dictionaries and metadata.
 """
 
 import pandas as pd
@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 
 @dataclass
 class DatasetInfo:
-    """Metadatos extraídos automáticamente del dataset."""
+    """Metadata extracted automatically from the dataset."""
     n_rows: int = 0
     n_cols: int = 0
     numeric_cols: list = field(default_factory=list)
@@ -30,7 +30,7 @@ class DatasetInfo:
     file_format: str = ""
 
 
-# Patrones comunes en datos ambientales del LEA
+# Common patterns in LEA environmental datasets
 KNOWN_COORDINATE_PATTERNS = ["latitud", "longitud", "lat", "lon", "x", "y"]
 KNOWN_DEPTH_PATTERNS = ["profundidad", "depth", "prof"]
 KNOWN_SITE_PATTERNS = ["sitio", "site", "estacion", "station", "site_name"]
@@ -39,7 +39,7 @@ KNOWN_DICT_SHEET_PATTERNS = ["diccionario", "dictionary", "metadata", "variables
 
 
 def _detect_special_columns(df: pd.DataFrame) -> dict:
-    """Detecta columnas especiales por nombre: coordenadas, profundidad, sitio, incertidumbre."""
+    """Detect special columns by name: coordinates, depth, site, uncertainty."""
     cols_lower = {c: c.lower().strip() for c in df.columns}
     result = {
         "coordinate_cols": [],
@@ -73,7 +73,7 @@ def _detect_special_columns(df: pd.DataFrame) -> dict:
 
 
 def _detect_dictionary_sheet(sheet_names: list[str]) -> Optional[str]:
-    """Busca una hoja que parezca ser diccionario de datos."""
+    """Find a worksheet that looks like a data dictionary."""
     for name in sheet_names:
         if any(p in name.lower() for p in KNOWN_DICT_SHEET_PATTERNS):
             return name
@@ -81,7 +81,7 @@ def _detect_dictionary_sheet(sheet_names: list[str]) -> Optional[str]:
 
 
 def _extract_units_from_dict(dict_df: pd.DataFrame) -> dict:
-    """Extrae mapeo columna->unidad desde un diccionario de datos."""
+    """Extract a column-to-unit mapping from a data dictionary."""
     units = {}
     col_col = None
     unit_col = None
@@ -106,19 +106,19 @@ def load(
     sheet_name: Optional[str] = None,
 ) -> tuple[pd.DataFrame, DatasetInfo]:
     """
-    Carga un archivo de datos ambientales y extrae metadatos automáticamente.
+    Load an environmental data file and extract metadata automatically.
 
     Parameters
     ----------
     filepath : str or Path
-        Ruta al archivo (.csv, .xlsx, .xls, .json)
+        Path to the input file (.csv, .xlsx, .xls, .json).
     sheet_name : str, optional
-        Nombre de la hoja para Excel. Si None, usa la primera hoja de datos.
+        Worksheet name for Excel files. If None, the first data worksheet is used.
 
     Returns
     -------
     tuple[pd.DataFrame, DatasetInfo]
-        DataFrame con los datos y un DatasetInfo con los metadatos detectados.
+        DataFrame with loaded data and a DatasetInfo object with detected metadata.
     """
     filepath = Path(filepath)
     info = DatasetInfo(file_format=filepath.suffix.lower())
@@ -126,14 +126,14 @@ def load(
     if filepath.suffix.lower() in (".xlsx", ".xls"):
         xls = pd.ExcelFile(filepath)
 
-        # Buscar diccionario de datos
+        # Try to locate a data dictionary worksheet
         dict_sheet = _detect_dictionary_sheet(xls.sheet_names)
         if dict_sheet:
             info.has_dictionary = True
             info.dictionary = pd.read_excel(xls, sheet_name=dict_sheet)
             info.units = _extract_units_from_dict(info.dictionary)
 
-        # Cargar hoja de datos
+        # Load data worksheet
         if sheet_name:
             df = pd.read_excel(xls, sheet_name=sheet_name)
         else:
@@ -147,9 +147,9 @@ def load(
         df = pd.read_json(filepath)
 
     else:
-        raise ValueError(f"Formato no soportado: {filepath.suffix}")
+        raise ValueError(f"Unsupported file format: {filepath.suffix}")
 
-    # Detectar columnas especiales
+    # Detect special-purpose columns
     special = _detect_special_columns(df)
 
     info.n_rows, info.n_cols = df.shape

@@ -1,7 +1,7 @@
 """
 aeda.engine.anomalies
-Detección de anomalías en datos ambientales.
-Isolation Forest, LOF, y métodos estadísticos.
+Anomaly detection for environmental datasets.
+Isolation Forest, LOF, and statistical methods.
 """
 
 import numpy as np
@@ -14,10 +14,10 @@ from sklearn.neighbors import LocalOutlierFactor
 
 @dataclass
 class AnomalyResult:
-    """Resultado de detección de anomalías."""
+    """Result of anomaly detection."""
     method: str
     is_anomaly: np.ndarray  # boolean array
-    scores: np.ndarray  # anomaly scores (más negativo = más anómalo)
+    scores: np.ndarray  # anomaly scores (more negative = more anomalous)
     n_anomalies: int = 0
     anomaly_indices: list = field(default_factory=list)
     diagnostics: dict = field(default_factory=dict)
@@ -32,12 +32,14 @@ def run_isolation_forest(
     random_state: int = 42,
 ) -> AnomalyResult:
     """
-    Isolation Forest: eficiente para alta dimensionalidad.
-    
+    Isolation Forest: efficient for high-dimensional data.
+
     Parameters
     ----------
-    df : DataFrame escalado
-    contamination : Proporción esperada de anomalías (0-0.5)
+    df : pd.DataFrame
+        Scaled DataFrame.
+    contamination : float
+        Expected proportion of anomalies (0-0.5).
     """
     iso = IsolationForest(
         contamination=contamination,
@@ -70,8 +72,8 @@ def run_lof(
     contamination: float = 0.05,
 ) -> AnomalyResult:
     """
-    Local Outlier Factor: detecta anomalías basándose en densidad local.
-    Bueno para clusters de diferente densidad.
+    Local Outlier Factor: detects anomalies based on local density.
+    Useful for clusters with different densities.
     """
     n_neighbors = min(n_neighbors, len(df) - 1)
 
@@ -104,8 +106,8 @@ def run_statistical(
     threshold: float = 3.0,
 ) -> AnomalyResult:
     """
-    Detección estadística simple: Z-score o IQR.
-    Una muestra es anómala si CUALQUIER variable excede el umbral.
+    Simple statistical detection: Z-score or IQR.
+    A sample is anomalous if ANY variable exceeds the threshold.
     """
     if method == "zscore":
         z = np.abs((df - df.mean()) / df.std())
@@ -116,10 +118,10 @@ def run_statistical(
         iqr = q3 - q1
         is_anomaly_per_col = (df < (q1 - threshold * iqr)) | (df > (q3 + threshold * iqr))
     else:
-        raise ValueError(f"Método no soportado: {method}")
+        raise ValueError(f"Unsupported method: {method}")
 
     is_anomaly = is_anomaly_per_col.any(axis=1).values
-    # Score: número de variables anómalas por muestra
+    # Score: number of anomalous variables per sample
     scores = -is_anomaly_per_col.sum(axis=1).values.astype(float)
 
     anomaly_idx = df.index[is_anomaly].tolist()
@@ -149,9 +151,9 @@ def detect_anomalies(
     **kwargs,
 ) -> AnomalyResult:
     """
-    Interfaz unificada para detección de anomalías.
+    Unified interface for anomaly detection.
 
-    Si method='auto', usa Isolation Forest (mejor rendimiento general).
+    If method='auto', uses Isolation Forest (best overall performance).
     """
     if method == "auto":
         method = "isolation_forest"
@@ -163,4 +165,4 @@ def detect_anomalies(
     elif method in ("zscore", "iqr"):
         return run_statistical(df, method=method, **kwargs)
     else:
-        raise ValueError(f"Método no soportado: {method}")
+        raise ValueError(f"Unsupported method: {method}")

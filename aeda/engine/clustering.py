@@ -1,7 +1,7 @@
 """
 aeda.engine.clustering
-Módulo de clustering para datos ambientales.
-K-Means, DBSCAN, Hierarchical con selección automática de parámetros.
+Clustering module for environmental datasets.
+K-Means, DBSCAN, and Hierarchical clustering with automatic parameter selection.
 """
 
 import numpy as np
@@ -15,7 +15,7 @@ from sklearn.neighbors import NearestNeighbors
 
 @dataclass
 class ClusteringResult:
-    """Resultado de un análisis de clustering."""
+    """Result of a clustering analysis."""
     method: str
     labels: np.ndarray
     n_clusters: int
@@ -28,7 +28,7 @@ class ClusteringResult:
 
 
 def _evaluate_clustering(X: np.ndarray, labels: np.ndarray) -> dict:
-    """Calcula métricas de calidad del clustering."""
+    """Compute clustering quality metrics."""
     unique_labels = set(labels)
     unique_labels.discard(-1)  # DBSCAN noise
     n_clusters = len(unique_labels)
@@ -55,11 +55,12 @@ def find_optimal_k(
     method: str = "silhouette",
 ) -> dict:
     """
-    Encuentra el K óptimo para K-Means usando silhouette o elbow.
+    Find the optimal K for K-Means using silhouette and inertia.
 
     Returns
     -------
-    dict con 'optimal_k', 'scores', y 'all_results'
+    dict
+        Contains 'optimal_k', 'silhouette_scores', and 'inertias'.
     """
     k_min, k_max = k_range
     k_max = min(k_max, len(X) - 1)
@@ -86,9 +87,7 @@ def run_kmeans(
     n_clusters: Optional[int] = None,
     k_range: tuple[int, int] = (2, 10),
 ) -> ClusteringResult:
-    """
-    K-Means con selección automática de K si n_clusters es None.
-    """
+    """Run K-Means with automatic K selection when n_clusters is None."""
     X = df.values
 
     if n_clusters is None:
@@ -113,13 +112,13 @@ def run_kmeans(
 
 
 def _estimate_eps(X: np.ndarray, k: int = 5) -> float:
-    """Estima eps para DBSCAN usando el método del k-NN distance plot."""
+    """Estimate DBSCAN eps using the k-NN distance plot method."""
     nn = NearestNeighbors(n_neighbors=k)
     nn.fit(X)
     distances, _ = nn.kneighbors(X)
     sorted_distances = np.sort(distances[:, -1])
 
-    # Buscar el "codo" usando la segunda derivada
+    # Find the "knee" using the second derivative
     diffs = np.diff(sorted_distances)
     diffs2 = np.diff(diffs)
     if len(diffs2) > 0:
@@ -135,8 +134,8 @@ def run_dbscan(
     min_samples: int = 5,
 ) -> ClusteringResult:
     """
-    DBSCAN con estimación automática de eps si no se provee.
-    Útil para datos con clusters de forma irregular y detección de noise.
+    Run DBSCAN with automatic eps estimation when not provided.
+    Useful for irregularly shaped clusters and noise detection.
     """
     X = df.values
 
@@ -173,13 +172,11 @@ def run_hierarchical(
     n_clusters: Optional[int] = None,
     linkage: Literal["ward", "complete", "average", "single"] = "ward",
 ) -> ClusteringResult:
-    """
-    Clustering jerárquico aglomerativo.
-    """
+    """Run agglomerative hierarchical clustering."""
     X = df.values
 
     if n_clusters is None:
-        # Usar silhouette para encontrar K óptimo
+        # Use silhouette score to find the optimal K
         best_k, best_score = 2, -1
         for k in range(2, min(11, len(X))):
             hc = AgglomerativeClustering(n_clusters=k, linkage=linkage)
@@ -209,16 +206,17 @@ def cluster(
     **kwargs,
 ) -> ClusteringResult:
     """
-    Interfaz unificada para clustering.
+    Unified interface for clustering.
 
-    Si method='auto', ejecuta K-Means y DBSCAN, y retorna el de mejor silhouette.
+    If method='auto', runs K-Means and DBSCAN and returns the one with
+    the best silhouette score.
     """
     if method == "auto":
         results = []
         results.append(run_kmeans(df, n_clusters=n_clusters))
         results.append(run_dbscan(df, **kwargs))
 
-        # Seleccionar el mejor por silhouette
+        # Select the best result by silhouette score
         best = max(
             [r for r in results if r.metrics.get("silhouette") is not None],
             key=lambda r: r.metrics["silhouette"],
@@ -238,4 +236,4 @@ def cluster(
     elif method == "hierarchical":
         return run_hierarchical(df, n_clusters=n_clusters, **kwargs)
     else:
-        raise ValueError(f"Método no soportado: {method}")
+        raise ValueError(f"Unsupported method: {method}")
