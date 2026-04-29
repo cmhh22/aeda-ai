@@ -29,18 +29,52 @@ from enum import Enum
 #  GEOCHEMICAL CONSTANTS
 # ============================================================
 
+# Geochemical element classification (aligned with NOAA Buchman 2008 thresholds
+# and reviewed with the project's scientific tutor).
+# These constants are also exposed for external alignment with the
+# interpretation module thresholds table.
 MAJOR_ELEMENTS = {"Na", "Mg", "Al", "Si", "K", "Ca", "Fe", "Ti", "Mn", "P"}
 TRACE_ELEMENTS = {
     "V", "Cr", "Co", "Ni", "Cu", "Zn", "Ga", "As", "Br", "Rb",
     "Sr", "Y", "Zr", "Nb", "Mo", "Ba", "Pb", "Sc", "S", "Cl",
+    "Cd", "Hg", "Ag", "Sb", "Se",
 }
-HEAVY_METALS = {"Cr", "Mn", "Co", "Ni", "Cu", "Zn", "As", "Pb", "Mo"}
+# Regulated heavy metals with TEL/PEL thresholds in NOAA Buchman (2008).
+# This list MUST stay in sync with aeda.interpretation.thresholds.TEL_PEL_MARINE_SEDIMENT.
+HEAVY_METALS = {"As", "Cd", "Cr", "Cu", "Hg", "Ni", "Pb", "Zn", "Ag", "Sb"}
 SEDIMENT_INDICATORS = {"PPI550", "PPI950", "HC"}
 GRANULOMETRY_PATTERNS = [
     ("< 2", "2 < G < 63", "> 63"),
     ("clay", "silt", "sand"),
     ("arcilla", "limo", "arena"),
 ]
+
+
+# Sanity check: HEAVY_METALS must stay aligned with the NOAA thresholds table
+# in the interpretation module. Drift between these two lists creates the bug
+# where the brain "detects" metals that the interpretation module cannot classify.
+def _check_heavy_metals_alignment() -> None:
+    """Verify HEAVY_METALS matches NOAA TEL/PEL thresholds at import time."""
+    try:
+        from aeda.interpretation.thresholds import TEL_PEL_MARINE_SEDIMENT
+    except ImportError:  # pragma: no cover
+        # interpretation module not available at import time — skip silently.
+        return
+    noaa_metals = set(TEL_PEL_MARINE_SEDIMENT.keys())
+    if HEAVY_METALS != noaa_metals:
+        # Use a lazy assertion so the import does not fail in production but
+        # surfaces the issue clearly during development.
+        import warnings
+        warnings.warn(
+            f"HEAVY_METALS in auto_selector ({sorted(HEAVY_METALS)}) does not match "
+            f"NOAA TEL/PEL table ({sorted(noaa_metals)}). "
+            f"This will cause inconsistencies between the brain's recommendations "
+            f"and the interpretation module.",
+            UserWarning,
+        )
+
+
+_check_heavy_metals_alignment()
 
 
 class Confidence(Enum):
