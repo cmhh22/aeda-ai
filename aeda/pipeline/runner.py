@@ -19,6 +19,10 @@ from aeda.engine.clustering import cluster, ClusteringResult
 from aeda.engine.anomalies import detect_anomalies, AnomalyResult
 from aeda.engine.correlations import correlate, CorrelationResult
 from aeda.engine.feature_analysis import analyze_features, FeatureImportanceResult
+from aeda.interpretation import (
+    InterpretationReport,
+    build_interpretation_report,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -47,6 +51,9 @@ class AEDAResults:
     anomalies: Optional[AnomalyResult] = None
     correlations: Optional[Union[CorrelationResult, dict]] = None
     feature_importance: Optional[FeatureImportanceResult] = None
+
+    # Environmental interpretation (EF, TEL/PEL, Birch)
+    interpretation: Optional[InterpretationReport] = None
 
     def summary(self) -> str:
         lines = ["=" * 60, "AEDA-AI RESULTS", "=" * 60]
@@ -108,6 +115,21 @@ class AEDAResults:
         else:
             lines.append("\nFeature importance: FAILED (check logs)")
 
+        if self.interpretation:
+            lines.append(f"\nEnvironmental interpretation:")
+            lines.append(f"  Metals analyzed: {self.interpretation.metals_analyzed}")
+            if self.interpretation.ef_result is not None:
+                lines.append(f"  Reference element: {self.interpretation.ef_result.reference_element}")
+                lines.append(f"  Baseline strategy: {self.interpretation.ef_result.baseline_strategy}")
+            tel_pel_total = sum(
+                self.interpretation.tel_pel_classifications[m].notna().sum()
+                for m in self.interpretation.metals_analyzed
+                if m in self.interpretation.tel_pel_classifications.columns
+            )
+            lines.append(f"  TEL/PEL classifications computed: {int(tel_pel_total)}")
+        else:
+            lines.append("\nEnvironmental interpretation: not run (no eligible metals or reference element)")
+
         lines.append("=" * 60)
         return "\n".join(lines)
 
@@ -140,6 +162,11 @@ class AEDAPipeline:
         correlation_method: str = "compare",
         apply_clr: bool | str | None = False,
         contamination: float = 0.05,
+        # Environmental interpretation parameters
+        run_interpretation: bool = True,
+        reference_element: str = "Al",
+        baseline_strategy: str = "deepest",
+        custom_baseline: Optional[dict] = None,
     ):
         self.scale_method = scale_method
         self.impute_strategy = impute_strategy
@@ -149,6 +176,10 @@ class AEDAPipeline:
         self.correlation_method = correlation_method
         self.apply_clr = apply_clr
         self.contamination = contamination
+        self.run_interpretation = run_interpretation
+        self.reference_element = reference_element
+        self.baseline_strategy = baseline_strategy
+        self.custom_baseline = custom_baseline
 
     def run(
         self,
@@ -290,4 +321,74 @@ class AEDAPipeline:
             logger.warning(f"Feature importance failed: {type(e).__name__}: {e}")
             results.feature_importance = None
 
+        # 10. ENVIRONMENTAL INTERPRETATION (EF, TEL/PEL, Birch)
+        if self.run_interpretation:
+            try:
+                results.interpretation = self._run_interpretation(
+                    raw_df=df,
+                    info=info,
+                    plan=plan,
+                )
+            except Exception as e:
+                logger.warning(
+                    f"Environmental interpretation failed: {type(e).__name__}: {e}"
+                )
+                results.interpretation = None
+
         return results
+
+    def _run_interpretation(
+        self,
+        raw_df: pd.DataFrame,
+        info: DatasetInfo,
+        plan: AnalysisPlan,
+    ) -> Optional[InterpretationReport]:
+        """Run the environmental interpretation layer if pre-requisites are met.
+
+        Pre-requisites:
+        - At least one heavy metal detected by the brain.
+        - The reference element is present in the raw dataset.
+        - A depth column is available (required for the deepest baseline strategy).
+
+        If any pre-requisite is missing, this returns None and logs a debug message.
+        """
+        metals = [m for m in plan.profile.heavy_metal_cols if m in raw_df.columns]
+
+        if not metals:
+            logger.debug("Skipping interpretation: no heavy metals detected.")
+            return None
+
+        if self.reference_element not in raw_df.columns:
+            logger.debug(
+                f"Skipping interpretation: reference element "
+                f"'{self.reference_element}' not in dataset."
+            )
+            return None
+
+        # The reference element cannot also be one of the metals being analyzed.
+        metals = [m for m in metals if m != self.reference_element]
+        if not metals:
+            return None
+
+        depth_col = info.depth_col
+        site_col = info.site_col
+
+        # If we picked the deepest strategy but there is no depth column, fall back
+        # to global_min_depth (only requires depth) or skip with a clear warning.
+        effective_strategy = self.baseline_strategy
+        if effective_strategy == "deepest" and depth_col is None:
+            logger.warning(
+                "baseline_strategy='deepest' requested but no depth column found; "
+                "skipping interpretation."
+            )
+            return None
+
+        return build_interpretation_report(
+            raw_df,
+            metals=metals,
+            reference_element=self.reference_element,
+            site_col=site_col,
+            depth_col=depth_col,
+            baseline_strategy=effective_strategy,
+            custom_baseline=self.custom_baseline,
+        )

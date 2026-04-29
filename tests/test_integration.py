@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """Integration tests for critical default-pipeline regression scenarios."""
 
 from __future__ import annotations
