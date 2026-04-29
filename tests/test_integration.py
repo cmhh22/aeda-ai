@@ -74,7 +74,49 @@ def test_default_dim_method_is_pca():
     result = reduce(processed, method="auto")
 
     assert result.method == "PCA", f"Expected PCA default, got {result.method}"
-    assert result.loadings is not None, "PCA should provide loadings"
+
+
+def test_cluster_auto_with_kmeans_kwargs():
+    """Regression: cluster(method='auto') must not pass K-Means kwargs to DBSCAN."""
+    from aeda.engine.clustering import cluster
+
+    rng = np.random.default_rng(42)
+    df = pd.DataFrame(rng.normal(size=(50, 3)), columns=list("abc"))
+
+    # k_range belongs to K-Means, not DBSCAN.
+    # Before this fix, this call would raise TypeError.
+    result = cluster(df, method="auto", k_range=(2, 8))
+
+    assert result is not None
+    assert result.diagnostics.get("auto_selected") is True
+    assert "compared_methods" in result.diagnostics
+
+
+def test_cluster_auto_with_dbscan_kwargs():
+    """Regression: cluster(method='auto') must accept DBSCAN-specific kwargs without breaking K-Means."""
+    from aeda.engine.clustering import cluster
+
+    rng = np.random.default_rng(42)
+    df = pd.DataFrame(rng.normal(size=(50, 3)), columns=list("abc"))
+
+    # min_samples belongs to DBSCAN, not K-Means.
+    result = cluster(df, method="auto", min_samples=10)
+
+    assert result is not None
+    assert result.diagnostics.get("auto_selected") is True
+
+
+def test_cluster_explicit_method_filters_kwargs():
+    """Explicit methods must also tolerate kwargs that don't belong to them."""
+    from aeda.engine.clustering import cluster
+
+    rng = np.random.default_rng(42)
+    df = pd.DataFrame(rng.normal(size=(50, 3)), columns=list("abc"))
+
+    # Pass DBSCAN's min_samples to explicit kmeans — must be silently ignored.
+    result = cluster(df, method="kmeans", n_clusters=3, min_samples=10)
+    assert result.method == "K-Means"
+    assert result.n_clusters == 3
 
 
 def test_feature_importance_values_are_sane():

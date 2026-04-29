@@ -13,6 +13,17 @@ from sklearn.metrics import silhouette_score, calinski_harabasz_score, davies_bo
 from sklearn.neighbors import NearestNeighbors
 
 
+# Parameters that belong specifically to each clustering method
+KMEANS_KWARGS = {"k_range"}
+DBSCAN_KWARGS = {"eps", "min_samples"}
+HIERARCHICAL_KWARGS = {"linkage"}
+
+
+def _split_kwargs(kwargs: dict, allowed: set[str]) -> dict:
+    """Return only the kwargs that are accepted by the target function."""
+    return {k: v for k, v in kwargs.items() if k in allowed}
+
+
 @dataclass
 class ClusteringResult:
     """Result of a clustering analysis."""
@@ -209,12 +220,17 @@ def cluster(
     Unified interface for clustering.
 
     If method='auto', runs K-Means and DBSCAN and returns the one with
-    the best silhouette score.
+    the best silhouette score. Each method receives only its own kwargs.
     """
     if method == "auto":
         results = []
-        results.append(run_kmeans(df, n_clusters=n_clusters))
-        results.append(run_dbscan(df, **kwargs))
+        # K-Means accepts n_clusters and k_range; DBSCAN accepts eps and min_samples.
+        # In auto mode we filter kwargs so each function only receives its own.
+        kmeans_kwargs = _split_kwargs(kwargs, KMEANS_KWARGS)
+        dbscan_kwargs = _split_kwargs(kwargs, DBSCAN_KWARGS)
+
+        results.append(run_kmeans(df, n_clusters=n_clusters, **kmeans_kwargs))
+        results.append(run_dbscan(df, **dbscan_kwargs))
 
         # Select the best result by silhouette score
         best = max(
@@ -230,10 +246,10 @@ def cluster(
         return best
 
     if method == "kmeans":
-        return run_kmeans(df, n_clusters=n_clusters, **kwargs)
+        return run_kmeans(df, n_clusters=n_clusters, **_split_kwargs(kwargs, KMEANS_KWARGS))
     elif method == "dbscan":
-        return run_dbscan(df, **kwargs)
+        return run_dbscan(df, **_split_kwargs(kwargs, DBSCAN_KWARGS))
     elif method == "hierarchical":
-        return run_hierarchical(df, n_clusters=n_clusters, **kwargs)
+        return run_hierarchical(df, n_clusters=n_clusters, **_split_kwargs(kwargs, HIERARCHICAL_KWARGS))
     else:
         raise ValueError(f"Unsupported method: {method}")
