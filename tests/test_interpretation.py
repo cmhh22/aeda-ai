@@ -194,3 +194,90 @@ def test_interpretation_report_end_to_end():
     surface_idx = df[df["Depth"] < 3].index
     pb_classes = report.tel_pel_classifications.loc[surface_idx, "Pb"]
     assert (pb_classes != TELPELClass.BELOW_TEL.value).sum() > 0
+
+
+def test_ef_custom_baseline_per_site_uses_correct_site():
+    """Regression: per-site custom_baseline must apply the right baseline per row."""
+    df = pd.DataFrame({
+        "site": ["A", "A", "B", "B", "C", "C"],
+        "depth": [10, 50, 10, 50, 10, 50],
+        "Al": [5.0, 6.0, 4.0, 5.0, 6.0, 7.0],
+        "Pb": [30, 20, 50, 25, 100, 30],
+    })
+    custom = {
+        "A": {"Al": 5.5, "Pb": 25.0},
+        "B": {"Al": 4.5, "Pb": 30.0},
+        "C": {"Al": 6.5, "Pb": 28.0},
+    }
+    result = compute_enrichment_factor(
+        df, metals=["Pb"], reference_element="Al",
+        site_col="site", depth_col="depth",
+        baseline_strategy="user",
+        custom_baseline=custom,
+    )
+    # Row 0 (site A, Al=5.0, Pb=30): EF = (30/5.0) / (25/5.5) = 6.0 / 4.5454... = 1.32
+    # Row 4 (site C, Al=6.0, Pb=100): EF = (100/6.0) / (28/6.5) = 16.66... / 4.3076... = 3.87
+    # If the bug is present, both rows would use baseline A and produce different (wrong) values.
+    assert abs(result.ef_values.loc[0, "Pb"] - 1.32) < 0.01
+    assert abs(result.ef_values.loc[4, "Pb"] - 3.87) < 0.01
+
+
+def test_ef_custom_baseline_global_flat_dict_still_works():
+    """Backwards compat: flat global custom_baseline must still work."""
+    df = pd.DataFrame({
+        "site": ["A", "A", "B", "B"],
+        "depth": [10, 50, 10, 50],
+        "Al": [5.0, 6.0, 4.0, 5.0],
+        "Pb": [30, 20, 50, 25],
+    })
+    result = compute_enrichment_factor(
+        df, metals=["Pb"], reference_element="Al",
+        baseline_strategy="user",
+        custom_baseline={"Al": 5.0, "Pb": 25.0},
+    )
+    assert result.ef_values["Pb"].notna().all()
+    # Row 0: (30/5.0) / (25/5.0) = 6/5 = 1.2
+    assert abs(result.ef_values.loc[0, "Pb"] - 1.2) < 0.01
+
+
+def test_ef_custom_baseline_missing_site_raises():
+    """custom_baseline must cover all sites in the dataset."""
+    df = pd.DataFrame({
+        "site": ["A", "B", "C"],
+        "depth": [10, 10, 10],
+        "Al": [5.0, 4.0, 6.0],
+        "Pb": [30, 50, 100],
+    })
+    incomplete = {
+        "A": {"Al": 5.0, "Pb": 25.0},
+        "B": {"Al": 4.0, "Pb": 30.0},
+        # missing "C"
+    }
+    with pytest.raises(ValueError, match="does not cover"):
+        compute_enrichment_factor(
+            df, metals=["Pb"], reference_element="Al",
+            site_col="site", depth_col="depth",
+            baseline_strategy="user",
+            custom_baseline=incomplete,
+        )
+
+
+def test_ef_custom_baseline_missing_metal_raises():
+    """Per-site baseline missing a required metal must raise."""
+    df = pd.DataFrame({
+        "site": ["A", "B"],
+        "depth": [10, 10],
+        "Al": [5.0, 4.0],
+        "Pb": [30, 50],
+    })
+    bad = {
+        "A": {"Al": 5.0},  # missing Pb
+        "B": {"Al": 4.0, "Pb": 30.0},
+    }
+    with pytest.raises(ValueError, match="missing required keys"):
+        compute_enrichment_factor(
+            df, metals=["Pb"], reference_element="Al",
+            site_col="site", depth_col="depth",
+            baseline_strategy="user",
+            custom_baseline=bad,
+        )

@@ -99,7 +99,13 @@ def compute_enrichment_factor(
         baseline_concs["__global__"] = global_baseline
 
     elif baseline_strategy == "user":
-        baseline_concs = custom_baseline
+        baseline_concs = _validate_user_baseline(
+            custom_baseline,
+            metals=metals,
+            reference_element=reference_element,
+            df=df,
+            site_col=site_col,
+        )
     else:
         raise ValueError(
             f"Unknown baseline_strategy '{baseline_strategy}'. "
@@ -114,7 +120,8 @@ def compute_enrichment_factor(
             ef_df.loc[idx, :] = np.nan
             continue
 
-        if site_col is not None and baseline_strategy == "deepest":
+        # Determine which baseline applies to this row.
+        if site_col is not None and baseline_strategy in ("deepest", "user") and "__global__" not in baseline_concs:
             site = row[site_col]
             if site not in baseline_concs:
                 ef_df.loc[idx, :] = np.nan
@@ -149,3 +156,77 @@ def compute_enrichment_factor(
             "n_sites": len(baseline_concs) if site_col else 1,
         },
     )
+
+
+def _validate_user_baseline(
+    custom_baseline: dict,
+    metals: list[str],
+    reference_element: str,
+    df: pd.DataFrame,
+    site_col: Optional[str],
+) -> dict:
+    """Validate and normalize a user-provided custom_baseline.
+
+    Accepted formats:
+    1. Global flat dict: {reference_element: float, metal1: float, ...}
+       → Wrapped as {"__global__": {...}}.
+    2. Per-site dict (when site_col is provided):
+       {site1: {reference_element: float, metal1: float, ...}, ...}
+       → Returned as-is, after validating coverage.
+
+    Raises ValueError if the structure does not match either format or is incomplete.
+    """
+    if not isinstance(custom_baseline, dict) or not custom_baseline:
+        raise ValueError("custom_baseline must be a non-empty dictionary.")
+
+    required_keys = {reference_element, *metals}
+
+    # Heuristic: if all top-level keys are column names of the dataset, this is a
+    # flat global dict; otherwise we assume keys are site identifiers.
+    top_level_keys = set(custom_baseline.keys())
+    looks_global = required_keys.issubset(top_level_keys) or "__global__" in top_level_keys
+
+    if looks_global:
+        if "__global__" in custom_baseline:
+            global_base = custom_baseline["__global__"]
+        else:
+            global_base = custom_baseline
+        missing = required_keys - set(global_base.keys())
+        if missing:
+            raise ValueError(
+                f"custom_baseline (global) is missing required keys: {sorted(missing)}"
+            )
+        return {"__global__": dict(global_base)}
+
+    # Per-site format
+    if site_col is None:
+        raise ValueError(
+            "custom_baseline appears to be per-site but site_col was not provided. "
+            "Either provide site_col or pass a flat global dict."
+        )
+
+    available_sites = set(df[site_col].dropna().unique())
+    provided_sites = set(custom_baseline.keys())
+
+    missing_sites = available_sites - provided_sites
+    if missing_sites:
+        raise ValueError(
+            f"custom_baseline does not cover the following sites in the dataset: "
+            f"{sorted(missing_sites)}. Provide a baseline entry for each site, "
+            f"or use a single global baseline."
+        )
+
+    validated: dict = {}
+    for site, site_base in custom_baseline.items():
+        if not isinstance(site_base, dict):
+            raise ValueError(
+                f"custom_baseline['{site}'] must be a dictionary mapping element to value."
+            )
+        missing = required_keys - set(site_base.keys())
+        if missing:
+            raise ValueError(
+                f"custom_baseline['{site}'] is missing required keys: {sorted(missing)}"
+            )
+        validated[site] = dict(site_base)
+
+    return validated
