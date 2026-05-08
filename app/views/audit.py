@@ -34,19 +34,27 @@ def render():
         return
 
     # ---- Tab structure ----
-    tab1, tab2, tab3, tab4 = st.tabs(["Overview", "Decisions", "Interpretation", "Technical"])
+    tab_overview, tab_decisions, tab_interpretation, tab_technical = st.tabs([
+        "Overview",
+        "Decisions",
+        "Interpretation",
+        "Technical",
+    ])
 
-    with tab1:
+    with tab_overview:
+        st.info(
+            "**Overview** — run summary, validation, and failures. "
+            "Coming soon: comprehensive audit trail summary."
+        )
+
+    with tab_decisions:
         _render_decisions(results)
 
-    with tab2:
+    with tab_interpretation:
         _render_interpretation(results)
 
-    with tab3:
+    with tab_technical:
         _render_technical(results)
-
-    with tab4:
-        st.info("Additional technical details coming soon.")
 
 
 # ============================================================
