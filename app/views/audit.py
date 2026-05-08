@@ -37,16 +37,16 @@ def render():
     tab1, tab2, tab3, tab4 = st.tabs(["Overview", "Decisions", "Interpretation", "Technical"])
 
     with tab1:
-        _render_overview(results)
-
-    with tab2:
         _render_decisions(results)
 
-    with tab3:
+    with tab2:
         _render_interpretation(results)
 
-    with tab4:
+    with tab3:
         _render_technical(results)
+
+    with tab4:
+        st.info("Additional technical details coming soon.")
 
 
 # ============================================================
