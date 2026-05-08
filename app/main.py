@@ -58,12 +58,12 @@ if "run_context" not in st.session_state:
 # Each entry: (label shown in sidebar, dotted import path of the page module)
 # ---------------------------------------------------------------------------
 PAGES = [
-    ("Upload & Configure", "app.pages.upload"),
-    ("Analysis Plan", "app.pages.plan"),
-    ("Results", "app.pages.results"),
-    ("Depth Profiles", "app.pages.depth"),
-    ("Audit", "app.pages.audit"),
-    ("Advanced Configuration", "app.pages.advanced"),
+    ("Upload & Configure", "app.views.upload"),
+    ("Analysis Plan", "app.views.plan"),
+    ("Results", "app.views.results"),
+    ("Depth Profiles", "app.views.depth"),
+    ("Audit", "app.views.audit"),
+    ("Advanced Configuration", "app.views.advanced"),
 ]
 
 
