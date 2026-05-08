@@ -14,8 +14,13 @@ import time
 
 
 def render():
-    st.header("Upload & Configure")
-    st.write("Upload your environmental dataset and configure the analysis.")
+    from app.components.page_header import page_header
+
+    page_header(
+        title="Upload & Configure",
+        description="Upload your environmental dataset and run the analysis with one click.",
+        icon="📤",
+    )
 
     # ---- File upload ----
     uploaded_file = st.file_uploader(
@@ -56,7 +61,11 @@ def render():
         else:
             preview_df = pd.read_excel(tmp_path, sheet_name=sheet_name, nrows=10)
     except Exception as e:
-        st.error(f"Error reading file: {e}")
+        from app.components.errors import show_error
+        show_error(
+            "Could not read the uploaded file. Make sure it is a valid Excel/CSV format.",
+            exc=e,
+        )
         return
 
     st.subheader("Data preview")
@@ -191,8 +200,11 @@ def _run_pipeline(filepath, sheet_name, exclude_cols, impute, dim_method, cluste
 
     except Exception as e:
         progress.empty()
-        st.error(f"Pipeline failed: {e}")
-        st.exception(e)
+        from app.components.errors import show_error
+        show_error(
+            "The pipeline could not complete. The dataset may have an unexpected format or missing required columns.",
+            exc=e,
+        )
 
 
 def _show_example():

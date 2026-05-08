@@ -23,11 +23,16 @@ import streamlit as st
 
 
 def render():
-    st.header("Advanced configuration")
-    st.caption(
-        "Re-run the analysis on the currently loaded dataset with custom "
-        "parameters. Useful for sensitivity analysis and for the scientific "
-        "tutor to validate alternative methodological choices."
+    from app.components.page_header import page_header
+
+    page_header(
+        title="Advanced Configuration",
+        description=(
+            "Re-run the analysis on the currently loaded dataset with custom "
+            "parameters. Useful for sensitivity analysis and for the scientific "
+            "tutor to validate alternative methodological choices."
+        ),
+        icon="⚙️",
     )
 
     ctx = st.session_state.get("run_context")
@@ -516,5 +521,8 @@ def _rerun_pipeline(ctx: dict, settings: dict):
 
     except Exception as e:
         progress.empty()
-        st.error(f"Re-run failed: {type(e).__name__}: {e}")
-        st.exception(e)
+        from app.components.errors import show_error
+        show_error(
+            "The pipeline could not complete with these settings. Please review the parameter configuration.",
+            exc=e,
+        )

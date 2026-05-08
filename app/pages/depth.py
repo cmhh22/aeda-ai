@@ -10,7 +10,13 @@ import streamlit as st
 
 
 def render():
-    st.header("Depth profiles")
+    from app.components.page_header import page_header
+
+    page_header(
+        title="Depth Profiles",
+        description="Concentration vs. depth — sediment cores read as temporal series.",
+        icon="🌊",
+    )
 
     results = st.session_state.get("results")
     if results is None:

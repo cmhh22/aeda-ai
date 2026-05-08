@@ -1,27 +1,46 @@
 """
-AEDA-AI — Streamlit Interface
+AEDA-AI — Streamlit interface, main entry point.
 
-Main entry point for the web interface. Run with:
+Run with:
     streamlit run app/main.py
+
+Responsibilities of this module:
+- Bootstrap sys.path so both `aeda.*` and `app.*` are importable.
+- Configure the Streamlit page (title, icon, layout).
+- Apply the AEDA-AI theme (palette + CSS layer).
+- Initialize session state.
+- Render the sidebar (branding + navigation + dataset status).
+- Route the selected page to its render() function.
 """
 
 import sys
-import os
+from pathlib import Path
 
-# Ensure the project root is on sys.path so both `app` and `aeda` packages
-# are importable regardless of the working directory when streamlit is launched.
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Ensure the project root is on sys.path so that both `aeda.*` and `app.*`
+# imports work regardless of how Streamlit is invoked (from the project root
+# or from inside the app/ directory).
+_PROJECT_ROOT = Path(__file__).parent.parent
+if str(_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(_PROJECT_ROOT))
 
 import streamlit as st
 
+from app.theme import apply_theme
+
+# ---------------------------------------------------------------------------
+# Page configuration
+# ---------------------------------------------------------------------------
 st.set_page_config(
     page_title="AEDA-AI",
     page_icon="🔬",
     layout="wide",
     initial_sidebar_state="expanded",
 )
+apply_theme()
 
+# ---------------------------------------------------------------------------
 # Session state initialization
+# ---------------------------------------------------------------------------
 if "results" not in st.session_state:
     st.session_state.results = None
 if "raw_df" not in st.session_state:
@@ -32,60 +51,82 @@ if "filename" not in st.session_state:
 # the pipeline on the same data with different settings, without forcing the
 # user to upload the file again.
 if "run_context" not in st.session_state:
-    st.session_state.run_context = None  # dict with tmp_path, sheet_name, exclude_cols, settings
+    st.session_state.run_context = None
+
+# ---------------------------------------------------------------------------
+# Pages registry — single source of truth for navigation.
+# Each entry: (label shown in sidebar, dotted import path of the page module)
+# ---------------------------------------------------------------------------
+PAGES = [
+    ("Upload & Configure", "app.pages.upload"),
+    ("Analysis Plan", "app.pages.plan"),
+    ("Results", "app.pages.results"),
+    ("Depth Profiles", "app.pages.depth"),
+    ("Audit", "app.pages.audit"),
+    ("Advanced Configuration", "app.pages.advanced"),
+]
 
 
-def main():
-    # Sidebar navigation
-    st.sidebar.title("AEDA-AI")
-    st.sidebar.caption("Automated Exploratory Data Analysis\nfor Environmental Data")
+def _render_sidebar() -> str:
+    """Render the sidebar (branding + navigation + status block).
+
+    Returns the label of the currently selected page.
+    """
+    # Branding: 🔬 + AEDA-AI in a single styled row
+    st.sidebar.markdown(
+        '<div class="sidebar-brand">'
+        '<span class="brand-icon">🔬</span>'
+        '<span class="brand-name">AEDA-AI</span>'
+        "</div>",
+        unsafe_allow_html=True,
+    )
+    st.sidebar.caption("Automated EDA for environmental data")
     st.sidebar.divider()
 
-    page = st.sidebar.radio(
+    # Navigation
+    page_label = st.sidebar.radio(
         "Navigation",
-        options=[
-            "Upload & Configure",
-            "Analysis Plan",
-            "Results",
-            "Depth Profiles",
-            "Audit",
-            "Advanced Configuration",
-        ],
+        options=[label for label, _ in PAGES],
         label_visibility="collapsed",
     )
 
-    # Show status in sidebar
-    if st.session_state.results is not None:
-        st.sidebar.divider()
-        st.sidebar.success(f"Dataset loaded: **{st.session_state.filename}**")
-        r = st.session_state.results
-        st.sidebar.metric("Samples", r.raw_data.shape[0])
-        st.sidebar.metric("Variables", r.raw_data.shape[1])
-        if r.clustering:
-            st.sidebar.metric("Clusters found", r.clustering.n_clusters)
-    else:
-        st.sidebar.divider()
-        st.sidebar.info("No dataset loaded yet.")
+    # Status block
+    st.sidebar.divider()
+    _render_status_block()
 
-    # Route to page
-    if page == "Upload & Configure":
-        from app.pages.upload import render
-        render()
-    elif page == "Analysis Plan":
-        from app.pages.plan import render
-        render()
-    elif page == "Results":
-        from app.pages.results import render
-        render()
-    elif page == "Depth Profiles":
-        from app.pages.depth import render
-        render()
-    elif page == "Audit":
-        from app.pages.audit import render
-        render()
-    elif page == "Advanced Configuration":
-        from app.pages.advanced import render
-        render()
+    return page_label
+
+
+def _render_status_block() -> None:
+    """Show dataset status in the sidebar — empty state or current dataset."""
+    results = st.session_state.results
+    if results is None:
+        st.sidebar.markdown(
+            '<div class="status-empty">No dataset loaded</div>',
+            unsafe_allow_html=True,
+        )
+        return
+
+    filename = st.session_state.filename or "—"
+    st.sidebar.markdown("**Current dataset**")
+    st.sidebar.caption(f"📄 {filename}")
+
+    cols = st.sidebar.columns(2)
+    cols[0].metric("Samples", results.raw_data.shape[0])
+    cols[1].metric("Variables", results.raw_data.shape[1])
+
+    if results.clustering is not None:
+        st.sidebar.metric("Clusters", results.clustering.n_clusters)
+
+
+def main() -> None:
+    page_label = _render_sidebar()
+
+    # Route to the selected page. Imports are lazy to keep page-load fast.
+    page_module_path = dict(PAGES)[page_label]
+    import importlib
+    module = importlib.import_module(page_module_path)
+    module.render()
 
 
 if __name__ == "__main__":

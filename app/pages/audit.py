@@ -21,10 +21,15 @@ import streamlit as st
 
 
 def render():
-    st.header("Audit")
-    st.caption(
-        "Trace of every decision the pipeline made on this dataset. "
-        "Use this page to verify the methodology and defend each choice."
+    from app.components.page_header import page_header
+
+    page_header(
+        title="Audit",
+        description=(
+            "Trace of every decision the pipeline made on this dataset. "
+            "Use this page to verify the methodology and defend each choice."
+        ),
+        icon="🔍",
     )
 
     results = st.session_state.get("results")

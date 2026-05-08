@@ -10,7 +10,13 @@ import streamlit as st
 
 
 def render():
-    st.header("Analysis Plan")
+    from app.components.page_header import page_header
+
+    page_header(
+        title="Analysis Plan",
+        description="What the system decided to do with your dataset, and why.",
+        icon="🧭",
+    )
 
     results = st.session_state.get("results")
     if results is None or results.plan is None:
