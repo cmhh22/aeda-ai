@@ -167,6 +167,13 @@ class AEDAPipeline:
         reference_element: str = "Al",
         baseline_strategy: str = "deepest",
         custom_baseline: Optional[dict] = None,
+        # Fine-grained method kwargs (advanced/expert overrides). Each dict is
+        # forwarded to the corresponding engine function, which already accepts
+        # **kwargs and filters the values it understands. Default is None to
+        # preserve backwards compatibility — when None, nothing is forwarded.
+        dim_kwargs: Optional[dict] = None,
+        clustering_kwargs: Optional[dict] = None,
+        anomaly_kwargs: Optional[dict] = None,
     ):
         self.scale_method = scale_method
         self.impute_strategy = impute_strategy
@@ -180,6 +187,9 @@ class AEDAPipeline:
         self.reference_element = reference_element
         self.baseline_strategy = baseline_strategy
         self.custom_baseline = custom_baseline
+        self.dim_kwargs = dim_kwargs or {}
+        self.clustering_kwargs = clustering_kwargs or {}
+        self.anomaly_kwargs = anomaly_kwargs or {}
 
     def run(
         self,
@@ -278,14 +288,18 @@ class AEDAPipeline:
 
         # 5. DIMENSIONALITY REDUCTION
         try:
-            results.dim_reduction = reduce(processed, method=self.dim_method)
+            results.dim_reduction = reduce(
+                processed, method=self.dim_method, **self.dim_kwargs
+            )
         except Exception as e:
             logger.warning(f"Dimensionality reduction failed: {type(e).__name__}: {e}")
             results.dim_reduction = None
 
         # 6. CLUSTERING
         try:
-            results.clustering = cluster(processed, method=self.clustering_method)
+            results.clustering = cluster(
+                processed, method=self.clustering_method, **self.clustering_kwargs
+            )
         except Exception as e:
             logger.warning(f"Clustering failed: {type(e).__name__}: {e}")
             results.clustering = None
@@ -296,6 +310,7 @@ class AEDAPipeline:
                 processed,
                 method=self.anomaly_method,
                 contamination=self.contamination,
+                **self.anomaly_kwargs,
             )
         except Exception as e:
             logger.warning(f"Anomaly detection failed: {type(e).__name__}: {e}")

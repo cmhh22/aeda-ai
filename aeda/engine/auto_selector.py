@@ -408,16 +408,42 @@ def _detect_depth_gradient(df: pd.DataFrame, depth_col: str, measurement_cols: l
                            threshold_pct: float = 0.3) -> bool:
     if depth_col not in df.columns:
         return False
+
+    depth_series = df[depth_col]
+    if isinstance(depth_series, pd.DataFrame):
+        depth_series = depth_series.iloc[:, 0]
+
     n_significant = 0
     for col in measurement_cols:
-        if col not in df.columns:
+        if col not in df.columns or col == depth_col:
             continue
-        valid = df[[depth_col, col]].dropna()
-        if len(valid) < 10:
+
+        col_series = df[col]
+        if isinstance(col_series, pd.DataFrame):
+            col_series = col_series.iloc[:, 0]
+
+        paired = pd.concat([depth_series, col_series], axis=1).dropna()
+        if len(paired) < 10:
             continue
-        r, p = stats.spearmanr(valid[depth_col], valid[col])
+
+        x = np.asarray(paired.iloc[:, 0], dtype=float).ravel()
+        y = np.asarray(paired.iloc[:, 1], dtype=float).ravel()
+
+        if np.std(x) == 0 or np.std(y) == 0:
+            continue
+
+        try:
+            result = stats.spearmanr(x, y)
+            r = float(result.correlation)
+            p = float(result.pvalue)
+        except (ValueError, TypeError):
+            continue
+
+        if np.isnan(r) or np.isnan(p):
+            continue
         if p < 0.05 and abs(r) > 0.3:
             n_significant += 1
+
     return n_significant / max(len(measurement_cols), 1) > threshold_pct
 
 

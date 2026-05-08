@@ -5,6 +5,13 @@ Main entry point for the web interface. Run with:
     streamlit run app/main.py
 """
 
+import sys
+import os
+
+# Ensure the project root is on sys.path so both `app` and `aeda` packages
+# are importable regardless of the working directory when streamlit is launched.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import streamlit as st
 
 st.set_page_config(
@@ -21,6 +28,11 @@ if "raw_df" not in st.session_state:
     st.session_state.raw_df = None
 if "filename" not in st.session_state:
     st.session_state.filename = None
+# Persisted run context — used by the Advanced Configuration page to re-run
+# the pipeline on the same data with different settings, without forcing the
+# user to upload the file again.
+if "run_context" not in st.session_state:
+    st.session_state.run_context = None  # dict with tmp_path, sheet_name, exclude_cols, settings
 
 
 def main():
@@ -31,7 +43,14 @@ def main():
 
     page = st.sidebar.radio(
         "Navigation",
-        options=["Upload & Configure", "Analysis Plan", "Results", "Depth Profiles"],
+        options=[
+            "Upload & Configure",
+            "Analysis Plan",
+            "Results",
+            "Depth Profiles",
+            "Audit",
+            "Advanced Configuration",
+        ],
         label_visibility="collapsed",
     )
 
@@ -60,6 +79,12 @@ def main():
         render()
     elif page == "Depth Profiles":
         from app.pages.depth import render
+        render()
+    elif page == "Audit":
+        from app.pages.audit import render
+        render()
+    elif page == "Advanced Configuration":
+        from app.pages.advanced import render
         render()
 
 

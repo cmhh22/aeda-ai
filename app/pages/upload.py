@@ -121,6 +121,26 @@ def _run_pipeline(filepath, sheet_name, exclude_cols, impute, dim_method, cluste
     progress = st.progress(0, text="Loading data...")
 
     try:
+        # Settings used in this run — persisted so the Advanced Configuration
+        # page can pre-fill its controls with the values that were actually used.
+        settings = {
+            "scale_method": "auto",
+            "impute_strategy": impute,
+            "dim_method": dim_method,
+            "clustering_method": cluster_method,
+            "anomaly_method": "auto",
+            "correlation_method": "compare",
+            "apply_clr": False,
+            "contamination": 0.05,
+            "run_interpretation": True,
+            "reference_element": "Al",
+            "baseline_strategy": "deepest",
+            "custom_baseline": None,
+            "dim_kwargs": {},
+            "clustering_kwargs": {},
+            "anomaly_kwargs": {},
+        }
+
         pipeline = AEDAPipeline(
             impute_strategy=impute,
             dim_method=dim_method,
@@ -147,6 +167,12 @@ def _run_pipeline(filepath, sheet_name, exclude_cols, impute, dim_method, cluste
         st.session_state.results = results
         st.session_state.raw_df = results.raw_data
         st.session_state.filename = filename
+        st.session_state.run_context = {
+            "tmp_path": filepath,
+            "sheet_name": sheet_name,
+            "exclude_cols": exclude_cols,
+            "settings": settings,
+        }
 
         progress.progress(100, text="Done!")
         time.sleep(0.5)
