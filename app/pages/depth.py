@@ -18,6 +18,12 @@ def render():
         icon="🌊",
     )
 
+    st.caption(
+        "In sediment cores, **deeper = older**. The plots show how concentration "
+        "of each variable changes through time, revealing historical contamination trends "
+        "and geochemical changes."
+    )
+
     results = st.session_state.get("results")
     if results is None:
         st.info("Run an analysis first from the Upload page.")
@@ -110,7 +116,7 @@ def _render_grid(df, variable_options, depth_col, site_col):
     # Preset groups for convenience
     plan = st.session_state.results.plan if st.session_state.results else None
 
-    presets = {"Custom selection": []}
+    presets = {}
     if plan and plan.profile.heavy_metal_cols:
         available_hm = [c for c in plan.profile.heavy_metal_cols if c in variable_options]
         if available_hm:
@@ -123,6 +129,7 @@ def _render_grid(df, variable_options, depth_col, site_col):
         available_sed = [c for c in plan.profile.sediment_indicator_cols if c in variable_options]
         if available_sed:
             presets["Sediment indicators"] = available_sed
+    presets["Custom selection"] = []
 
     col1, col2 = st.columns([1, 2])
     with col1:

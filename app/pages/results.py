@@ -29,6 +29,15 @@ def render():
 
     raw_df = results.raw_data
 
+    # ---- Top KPI bar ----
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Samples", raw_df.shape[0] if raw_df is not None else 0)
+    col2.metric("Variables analyzed", results.processed_data.shape[1] if results.processed_data is not None else "—")
+    col3.metric("Clusters", results.clustering.n_clusters if results.clustering is not None else "—")
+    col4.metric("Anomalies", results.anomalies.n_anomalies if results.anomalies is not None else "—")
+
+    st.divider()
+
     # Detect available categorical columns for coloring
     categorical_cols = raw_df.select_dtypes(exclude="number").columns.tolist()
 

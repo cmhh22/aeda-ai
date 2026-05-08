@@ -86,8 +86,7 @@ def render():
     diff = _settings_diff(settings, new_settings)
     if diff:
         with st.expander(f"Changes vs. last run ({len(diff)} parameter(s))", expanded=True):
-            for key, (old, new) in diff.items():
-                st.write(f"· **{key}**: `{old}` → `{new}`")
+            _show_diff_table(diff)
     else:
         st.caption("No changes vs. the last run.")
 
@@ -273,34 +272,51 @@ def _render_interpretation_controls(settings: dict, raw_df) -> dict:
 
 
 def _render_custom_baseline_editor(current):
-    """Allow the user to type a custom baseline as JSON.
+    """Allow the user to edit a custom baseline as a table using st.data_editor.
 
     Two accepted formats (also accepted by `_validate_user_baseline`):
     - Flat dict: {"Al": 8.2, "Pb": 14.0, ...}
     - Per-site:  {"site1": {"Al": ..., "Pb": ...}, "site2": {...}}
     """
-    import json
+    import pandas as pd
 
-    st.markdown("**Custom baseline (JSON)**")
+    st.markdown("**Custom baseline**")
     st.caption(
-        "Provide a flat dict of element → concentration, or a per-site dict "
-        "of site → {element: concentration}. The reference element and all "
+        "Edit baseline values as a table. The reference element and all "
         "metals to be analyzed must be present."
     )
 
-    default_text = json.dumps(current, indent=2) if current else (
-        '{\n  "Al": 0.0,\n  "Pb": 0.0,\n  "Zn": 0.0\n}'
-    )
-    raw_text = st.text_area("Baseline JSON", value=default_text, height=180)
+    # Convert current dict to DataFrame for editing
+    if current is None:
+        # Default: flat dict with a few elements
+        baseline_dict = {"Al": 0.0, "Pb": 0.0, "Zn": 0.0}
+    elif isinstance(current, dict) and all(isinstance(v, dict) for v in current.values()):
+        # Per-site format; flatten to single row for simplicity
+        # (in production, might want a multi-row editor)
+        baseline_dict = next(iter(current.values()))
+    else:
+        # Flat format
+        baseline_dict = current or {}
 
-    try:
-        parsed = json.loads(raw_text) if raw_text.strip() else None
-        if parsed is not None:
+    df_edit = pd.DataFrame(list(baseline_dict.items()), columns=["Element", "Concentration"])
+
+    edited_df = st.data_editor(
+        df_edit,
+        num_rows="dynamic",
+        use_container_width=True,
+        height=200,
+    )
+
+    # Convert back to dict
+    if edited_df is not None and len(edited_df) > 0:
+        try:
+            result = dict(zip(edited_df["Element"], edited_df["Concentration"]))
             st.success("Baseline parsed correctly.")
-        return parsed
-    except json.JSONDecodeError as e:
-        st.error(f"Invalid JSON: {e}")
-        return None
+            return result
+        except (ValueError, KeyError) as e:
+            st.error(f"Error parsing baseline: {e}")
+            return None
+    return None
 
 
 # ============================================================
@@ -452,6 +468,22 @@ def _settings_diff(old: dict, new: dict) -> dict:
         if old.get(k) != new.get(k):
             diff[k] = (old.get(k), new.get(k))
     return diff
+
+
+def _show_diff_table(diff: dict):
+    """Display diff as a clean table with Parameter, Old Value, New Value columns."""
+    import pandas as pd
+
+    rows = []
+    for key, (old, new) in diff.items():
+        rows.append({
+            "Parameter": key,
+            "Old Value": str(old) if old is not None else "(none)",
+            "New Value": str(new) if new is not None else "(none)",
+        })
+    
+    diff_df = pd.DataFrame(rows)
+    st.dataframe(diff_df, use_container_width=True, hide_index=True)
 
 
 def _rerun_pipeline(ctx: dict, settings: dict):

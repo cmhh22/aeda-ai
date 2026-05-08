@@ -4,6 +4,9 @@ Page 1: Upload & Configure
 The user uploads an Excel/CSV file, selects which columns to exclude from
 analysis (IDs, codes, coordinates), configures basic options, and runs
 the pipeline. Results are stored in session_state for the other pages.
+
+The page is structured as a numbered 1→5 workflow so the user always knows
+where they are in the process.
 """
 
 import streamlit as st
@@ -22,10 +25,12 @@ def render():
         icon="📤",
     )
 
-    # ---- File upload ----
+    # ---- Step 1: File upload ----
+    st.subheader("1. File")
     uploaded_file = st.file_uploader(
         "Select an Excel or CSV file",
         type=["xlsx", "xls", "csv"],
+        label_visibility="collapsed",
         help="The file should contain environmental measurements with samples as rows and variables as columns.",
     )
 
@@ -40,7 +45,8 @@ def render():
         tmp.write(uploaded_file.read())
         tmp_path = tmp.name
 
-    # ---- Sheet selection (Excel only) ----
+    # ---- Step 2: Sheet selection (Excel only) ----
+    st.subheader("2. Sheet")
     sheet_name = None
     if suffix in (".xlsx", ".xls"):
         xls = pd.ExcelFile(tmp_path)
@@ -48,11 +54,14 @@ def render():
             sheet_name = st.selectbox(
                 "Select sheet",
                 options=xls.sheet_names,
+                label_visibility="collapsed",
                 help="Choose the sheet containing your measurement data.",
             )
         else:
             sheet_name = xls.sheet_names[0]
-            st.caption(f"Sheet: **{sheet_name}**")
+            st.caption(f"Only sheet available: **{sheet_name}**")
+    else:
+        st.caption("CSV file selected — sheet selection not needed.")
 
     # ---- Preview data ----
     try:
@@ -68,13 +77,15 @@ def render():
         )
         return
 
-    st.subheader("Data preview")
-    st.dataframe(preview_df, use_container_width=True, height=300)
-    st.caption(f"{preview_df.shape[1]} columns detected")
+    with st.expander(f"Data preview ({preview_df.shape[1]} columns, first 10 rows)", expanded=False):
+        st.dataframe(preview_df, use_container_width=True, height=300)
 
-    # ---- Column exclusion ----
-    st.subheader("Columns to exclude from analysis")
-    st.write("Select columns that are identifiers, codes, dates, or metadata — not measurements.")
+    # ---- Step 3: Column exclusion ----
+    st.subheader("3. Columns to analyze")
+    st.caption(
+        "By default, non-numeric columns (identifiers, codes, dates, sites) "
+        "are excluded. Adjust below if needed."
+    )
 
     # Auto-detect likely non-measurement columns
     all_cols = preview_df.columns.tolist()
@@ -82,14 +93,19 @@ def render():
     suggested_exclude = non_numeric
 
     exclude_cols = st.multiselect(
-        "Exclude these columns",
+        "Exclude these columns from the ML analysis",
         options=all_cols,
         default=suggested_exclude,
+        label_visibility="collapsed",
         help="These columns will be ignored during the ML analysis. Coordinates and depth are excluded from ML but used for metadata.",
     )
 
-    # ---- Analysis options ----
-    st.subheader("Analysis options")
+    # ---- Step 4: Analysis options ----
+    st.subheader("4. Analysis options")
+    st.caption(
+        "Sensible defaults work for most environmental datasets — for fine-grained "
+        "control, use the Advanced Configuration page after the first run."
+    )
     col1, col2, col3 = st.columns(3)
 
     with col1:
@@ -97,6 +113,7 @@ def render():
             "Missing values strategy",
             options=["median", "mean", "knn", "drop_rows"],
             index=0,
+            label_visibility="collapsed",
             help="How to handle remaining missing values after filtering.",
         )
 
@@ -105,6 +122,7 @@ def render():
             "Dimensionality reduction",
             options=["pca", "auto"],
             index=0,
+            label_visibility="collapsed",
             help="PCA is recommended for most environmental datasets.",
         )
 
@@ -113,12 +131,12 @@ def render():
             "Clustering method",
             options=["auto", "kmeans", "dbscan", "hierarchical"],
             index=0,
+            label_visibility="collapsed",
             help="'auto' tries K-Means and DBSCAN, picks the best.",
         )
 
-    # ---- Run pipeline ----
-    st.divider()
-
+    # ---- Step 5: Run pipeline ----
+    st.subheader("5. Run")
     if st.button("Run analysis", type="primary", use_container_width=True):
         _run_pipeline(tmp_path, sheet_name, exclude_cols, impute, dim_method, cluster_method, uploaded_file.name)
 

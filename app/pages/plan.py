@@ -26,6 +26,15 @@ def render():
     plan = results.plan
     profile = plan.profile
 
+    # ---- Executive summary ----
+    st.markdown(f"""
+    Your dataset contains **{profile.n_samples} samples** and **{profile.n_features} variables**.
+    After preprocessing and dimensionality reduction, the system will work with approximately
+    **{profile.effective_dimensionality} dimensions**. The following analysis was tailored to your data's
+    statistical properties and suspected geochemical composition.
+    """)
+    st.divider()
+
     # ---- Dataset profile ----
     st.subheader("Dataset profile")
 
