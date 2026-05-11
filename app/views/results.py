@@ -29,6 +29,16 @@ def render():
 
     raw_df = results.raw_data
 
+    # Detect available columns to color the PCA biplot by. We allow both
+    # categorical columns (sites, cores) and a small whitelist of numeric
+    # metadata columns (depth, sample order) — these are ideal for showing
+    # gradients (e.g. concentration vs. depth).
+    NUMERIC_COLOR_WHITELIST = {
+        "Profundidad", "Depth", "depth",
+        "Fecha", "Date", "Year",
+        "No", "N", "Order",
+    }
+
     # ---- Top KPI bar ----
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Samples", raw_df.shape[0] if raw_df is not None else 0)
@@ -59,17 +69,38 @@ def render():
 
             col1, col2, col3 = st.columns([2, 1, 1])
             with col1:
+                # Build the color-by options: categorical columns first
+                # (best for site/group comparisons), then numeric metadata
+                # columns from the whitelist (best for gradients).
+                numeric_options = [
+                    c for c in raw_df.columns
+                    if c in NUMERIC_COLOR_WHITELIST
+                    and c in raw_df.select_dtypes(include="number").columns
+                ]
+                color_options = ["None"] + categorical_cols + numeric_options
                 color_by = st.selectbox(
-                    "Color by", options=["None"] + categorical_cols,
+                    "Color by", options=color_options,
                     index=1 if categorical_cols else 0,
                     key="pca_color",
+                    help=(
+                        "Categorical columns (Site_Name, Core) show group "
+                        "separation. Numeric columns (Profundidad) show a "
+                        "continuous gradient — useful to see how chemistry "
+                        "changes with depth."
+                    ),
                 )
             with col2:
                 n_loadings = st.slider("Loading arrows", min_value=5, max_value=25, value=12, key="pca_loadings")
             with col3:
                 n_comp = results.dim_reduction.n_components_selected
-                pc_x = st.selectbox("X axis", options=list(range(1, n_comp + 1)), index=0, key="pca_x")
-                pc_y = st.selectbox("Y axis", options=list(range(1, n_comp + 1)), index=1, key="pca_y")
+                pc_help = (
+                    "Principal component to show on this axis. Components are "
+                    "ordered by how much variability they capture: PC1 is the "
+                    "most informative, then PC2, etc. Changing the axis shows "
+                    "the dataset from a different angle."
+                )
+                pc_x = st.selectbox("X axis", options=list(range(1, n_comp + 1)), index=0, key="pca_x", help=pc_help)
+                pc_y = st.selectbox("Y axis", options=list(range(1, n_comp + 1)), index=1, key="pca_y", help=pc_help)
 
             fig = pca_biplot(
                 results.dim_reduction,
@@ -185,14 +216,31 @@ def render():
             )
             st.plotly_chart(fig, use_container_width=True)
 
-            # Cluster metrics
+            # Cluster metrics with explanatory tooltips
             metrics = results.clustering.metrics
             col1, col2, col3 = st.columns(3)
-            col1.metric("Clusters", results.clustering.n_clusters)
+            col1.metric(
+                "Clusters", results.clustering.n_clusters,
+                help="Number of groups the algorithm found in the data.",
+            )
             sil = metrics.get("silhouette")
-            col2.metric("Silhouette score", f"{sil:.3f}" if sil else "—")
+            col2.metric(
+                "Silhouette score", f"{sil:.3f}" if sil else "—",
+                help=(
+                    "How well separated the clusters are. Range -1 to 1; "
+                    "higher is better. Above 0.5 = good separation, "
+                    "0.25–0.5 = moderate, below 0.25 = weak."
+                ),
+            )
             db = metrics.get("davies_bouldin")
-            col3.metric("Davies-Bouldin", f"{db:.3f}" if db else "—")
+            col3.metric(
+                "Davies-Bouldin", f"{db:.3f}" if db else "—",
+                help=(
+                    "Average ratio of within-cluster to between-cluster "
+                    "distances. Lower is better. Below 1.0 = good, "
+                    "above 2.0 = weak."
+                ),
+            )
 
             # Composition chart
             if compare_col != "None":

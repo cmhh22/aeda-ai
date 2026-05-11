@@ -90,7 +90,19 @@ def render():
     # Auto-detect likely non-measurement columns
     all_cols = preview_df.columns.tolist()
     non_numeric = preview_df.select_dtypes(exclude="number").columns.tolist()
-    suggested_exclude = non_numeric
+
+    # Common metadata column names across Spanish and English datasets
+    METADATA_COLUMN_NAMES = {
+        # Coordinates
+        "Latitud", "Longitud", "Latitude", "Longitude", "Lat", "Lon", "Lng",
+        "X_UTM", "Y_UTM", "UTM_X", "UTM_Y",
+        # Row numbers / sample IDs that may be numeric
+        "No", "N", "ID", "Id", "Sample_ID", "SampleID", "Sample_No", "Sample",
+        "Order", "Row",
+    }
+    numeric_metadata = [c for c in all_cols if c in METADATA_COLUMN_NAMES]
+
+    suggested_exclude = sorted(set(non_numeric) | set(numeric_metadata))
 
     exclude_cols = st.multiselect(
         "Exclude these columns from the ML analysis",
@@ -114,7 +126,11 @@ def render():
             options=["median", "mean", "knn", "drop_rows"],
             index=0,
             label_visibility="collapsed",
-            help="How to handle remaining missing values after filtering.",
+            help="How to fill in or remove missing values.",
+        )
+        st.caption(
+            "Replaces empty cells with a plausible value so ML algorithms can "
+            "process the data. **Median** is robust against extreme values."
         )
 
     with col2:
@@ -123,7 +139,12 @@ def render():
             options=["pca", "auto"],
             index=0,
             label_visibility="collapsed",
-            help="PCA is recommended for most environmental datasets.",
+            help="Method used to compress the dataset into a smaller number of components.",
+        )
+        st.caption(
+            "Compresses many variables into a few summary axes (components) "
+            "that capture the main patterns. **PCA** is the standard choice "
+            "for environmental data."
         )
 
     with col3:
@@ -132,7 +153,11 @@ def render():
             options=["auto", "kmeans", "dbscan", "hierarchical"],
             index=0,
             label_visibility="collapsed",
-            help="'auto' tries K-Means and DBSCAN, picks the best.",
+            help="Algorithm used to group similar samples.",
+        )
+        st.caption(
+            "Groups samples with similar chemistry. **Auto** tries K-Means "
+            "and DBSCAN and keeps the best one according to a quality score."
         )
 
     # ---- Step 5: Run pipeline ----

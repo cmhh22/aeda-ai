@@ -106,13 +106,16 @@ def cluster_scatter(
 
     color_values = df.loc[scores.index, compare_with]
     color_map = get_categorical_colors(color_values.unique())
-    for group, color in color_map.items():
+    # The legend group title is set only on the first trace, otherwise Plotly
+    # repeats it once per trace and the legend looks duplicated.
+    for i, (group, color) in enumerate(color_map.items()):
         mask = color_values == group
         fig.add_trace(
             go.Scatter(
                 x=scores.loc[mask, x_col], y=scores.loc[mask, y_col],
                 mode="markers", name=str(group),
-                legendgroup=str(group), legendgrouptitle_text=compare_with,
+                legendgroup="ground_truth",
+                legendgrouptitle_text=compare_with if i == 0 else None,
                 marker=dict(size=7, color=color, line=dict(width=0.5, color="white")),
                 hovertemplate=f"<b>{group}</b><br>{x_col}: %{{x:.2f}}<br>{y_col}: %{{y:.2f}}<extra></extra>",
             ),
@@ -158,10 +161,13 @@ def _add_cluster_traces(
             color = CATEGORICAL_PALETTE[i % len(CATEGORICAL_PALETTE)]
             marker_opts = dict(size=8, color=color, line=dict(width=0.5, color="white"))
 
+        # The legend group title is set only on the first trace so Plotly
+        # does not repeat "Clusters" once per cluster in the side legend.
         trace = go.Scatter(
             x=scores.loc[mask, x_col], y=scores.loc[mask, y_col],
             mode="markers", name=name,
-            legendgroup=name, legendgrouptitle_text="Clusters",
+            legendgroup="clusters",
+            legendgrouptitle_text="Clusters" if i == 0 else None,
             marker=marker_opts,
             hovertemplate=f"<b>{name}</b><br>{x_col}: %{{x:.2f}}<br>{y_col}: %{{y:.2f}}<extra></extra>",
         )

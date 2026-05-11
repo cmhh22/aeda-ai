@@ -255,6 +255,9 @@ def pca_scree_plot(
     ))
 
     # Threshold reference lines on the cumulative axis
+    # Threshold reference lines on the cumulative axis. The annotation labels
+    # are placed at the *left* edge of the plot to avoid overlapping with the
+    # Plotly legend on the right.
     for threshold in (80, 90, 95):
         fig.add_shape(
             type="line",
@@ -264,11 +267,11 @@ def pca_scree_plot(
         )
         fig.add_annotation(
             text=f"{threshold}%",
-            xref="paper", x=1.02,
+            xref="paper", x=-0.02,
             yref="y2", y=threshold,
             showarrow=False,
-            font=dict(size=10, color="#888888"),
-            xanchor="left",
+            font=dict(size=9, color="#888888"),
+            xanchor="right",
         )
 
     fig.update_xaxes(title="Principal component")
