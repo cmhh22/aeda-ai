@@ -529,7 +529,10 @@ def _rerun_pipeline(ctx: dict, settings: dict):
             "tmp_path": ctx["tmp_path"],
             "sheet_name": ctx.get("sheet_name"),
             "exclude_cols": ctx.get("exclude_cols"),
-            "settings": settings,
+            # Persist the effective settings actually resolved by the pipeline,
+            # not what the user typed — that way the next page load reflects
+            # what really ran (e.g. apply_clr=True when the plan recommended it).
+            "settings": results.effective_settings or settings,
         }
 
         progress.progress(100, text="Done!")

@@ -55,6 +55,12 @@ class AEDAResults:
     # Environmental interpretation (EF, TEL/PEL, Birch)
     interpretation: Optional[InterpretationReport] = None
 
+    # Resolved parameters actually used in this run (after the auto-selector
+    # has resolved any "auto" values from the plan). This is what the UI
+    # reads to display the *effective* configuration in the Advanced page,
+    # not the user input.
+    effective_settings: Optional[dict] = None
+
     def summary(self) -> str:
         lines = ["=" * 60, "AEDA-AI RESULTS", "=" * 60]
 
@@ -161,7 +167,7 @@ class AEDAPipeline:
         anomaly_method: str = "auto",
         correlation_method: str = "compare",
         apply_clr: bool | str | None = False,
-        contamination: float = 0.05,
+        contamination: Optional[float] = None,
         # Environmental interpretation parameters
         run_interpretation: bool = True,
         reference_element: str = "Al",
@@ -275,6 +281,40 @@ class AEDAPipeline:
         if effective_clr == "auto":
             effective_clr = False
 
+        # Resolve contamination: if the user did not set it explicitly, use
+        # the value recommended by the auto-selector (primary anomaly rec-
+        # ommendation). Falls back to 0.05 if no recommendation is available.
+        effective_contamination = self.contamination
+        if effective_contamination is None:
+            for rec in plan.recommendations:
+                if rec.category == "anomaly" and rec.priority == 1:
+                    candidate = rec.params.get("contamination")
+                    if candidate is not None:
+                        effective_contamination = float(candidate)
+                    break
+            if effective_contamination is None:
+                effective_contamination = 0.05
+
+        # Persist the resolved configuration so the UI (Advanced page) can
+        # display what was actually applied, not what the user typed.
+        results.effective_settings = {
+            "scale_method": effective_scale,
+            "impute_strategy": effective_impute,
+            "apply_clr": effective_clr,
+            "contamination": effective_contamination,
+            "dim_method": self.dim_method,
+            "clustering_method": self.clustering_method,
+            "anomaly_method": self.anomaly_method,
+            "correlation_method": self.correlation_method,
+            "run_interpretation": self.run_interpretation,
+            "reference_element": self.reference_element,
+            "baseline_strategy": self.baseline_strategy,
+            "custom_baseline": self.custom_baseline,
+            "dim_kwargs": dict(self.dim_kwargs),
+            "clustering_kwargs": dict(self.clustering_kwargs),
+            "anomaly_kwargs": dict(self.anomaly_kwargs),
+        }
+
         # 4. PREPROCESSING
         processed, proc_log, scaler = preprocess(
             df,
@@ -309,7 +349,7 @@ class AEDAPipeline:
             results.anomalies = detect_anomalies(
                 processed,
                 method=self.anomaly_method,
-                contamination=self.contamination,
+                contamination=effective_contamination,
                 **self.anomaly_kwargs,
             )
         except Exception as e:

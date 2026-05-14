@@ -197,6 +197,7 @@ def _run_pipeline(filepath, sheet_name, exclude_cols, impute, dim_method, cluste
             impute_strategy=impute,
             dim_method=dim_method,
             clustering_method=cluster_method,
+            apply_clr="auto",
         )
 
         progress.progress(10, text="Loading and validating data...")
@@ -223,7 +224,10 @@ def _run_pipeline(filepath, sheet_name, exclude_cols, impute, dim_method, cluste
             "tmp_path": filepath,
             "sheet_name": sheet_name,
             "exclude_cols": exclude_cols,
-            "settings": settings,
+            # Persist the *effective* settings (what the auto-selector actually
+            # resolved and applied), not the raw form inputs. This is what the
+            # Advanced page reads to pre-fill its controls.
+            "settings": results.effective_settings or settings,
         }
 
         progress.progress(100, text="Done!")
