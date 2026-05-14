@@ -1,3 +1,183 @@
+# CODEX_PROMPT_DEPTH_AND_AUDIT_POLISH
+
+**Tipo:** UI/UX polish + bug fixes (consolidado tras QA de Depth Profiles y Audit)
+**Archivos:** 3 modificados
+**Tiempo estimado:** ~25 min
+**Tests esperados después:** 38 (sin cambios)
+
+---
+
+## 1. Contexto
+
+Durante la verificación visual sobre el dataset ISOVIDA aparecieron issues
+en dos páginas:
+
+### Depth Profiles
+
+1. La lista desplegable de "Variable" / "Variables to plot" incluye basura:
+   - Coordenadas (`Latitud`, `Longitud`) — ya tratadas para PCA, falta replicar acá.
+   - Identificadores (`No`).
+   - Columnas de **incertidumbre analítica** (`U_< 2 µm`, `U_2 < G < 63 µm`,
+     `U_> 63 µm`, `U_PPI550`). Son el error de medición, no la concentración.
+     Para el científico es confuso ver `U_Pb` o `U_< 2 µm` junto a `Pb`.
+
+2. En el modo "Multi-variable grid", el nombre de cada variable aparece
+   **dos veces** en cada subplot: una como título arriba (`As`, `Cr`, `Cu`)
+   y otra como etiqueta del eje X abajo. Bug de layout: están seteando
+   `subplot_titles` Y `update_xaxes(title_text=...)` al mismo tiempo.
+
+3. El selector "Separate by core (Core)" muestra cores como `Delfinario (A)`,
+   `Delfinario (B)` pero nunca se explica qué son `(A)` y `(B)`. Un usuario
+   no sabe si son réplicas, cores distintos, profundidades distintas, etc.
+
+### Audit
+
+El tab **Overview** quedó **vacío** después del polish anterior — solo muestra
+un `st.info("Coming soon: comprehensive audit trail summary")`. El problema es
+que en el polish previo, Codex creó la estructura de los 4 tabs y las
+funciones `_render_decisions`, `_render_interpretation`, `_render_technical`,
+pero **omitió** tres funciones que también debían existir:
+
+- `_render_run_summary(results)` — resumen de la corrida (archivo, samples, metadata)
+- `_render_validation(results)` — completeness e issues del dataset
+- `_render_failures(results)` — qué pasos del pipeline fallaron
+
+El tab Overview debe mostrar las dos primeras, y el tab Technical debe
+mostrar la tercera (además de lo que ya muestra).
+
+Como la reescritura del archivo es lo más seguro (evita el riesgo de que
+Codex inserte las funciones en el lugar equivocado), este prompt entrega
+`app/views/audit.py` **íntegro**.
+
+---
+
+## 2. Cambio 1 — `app/views/depth.py`: filtrar lista de variables y caption de cores
+
+**Archivo:** `app/views/depth.py`
+
+### 2.1 BUSCAR
+
+```python
+    depth_col = info.depth_col
+    site_col = info.site_col
+    numeric_cols = sorted(raw_df.select_dtypes(include="number").columns.tolist())
+
+    # Remove depth itself and other metadata from variable options
+    variable_options = [c for c in numeric_cols if c != depth_col]
+```
+
+### 2.2 REEMPLAZAR POR
+
+```python
+    depth_col = info.depth_col
+    site_col = info.site_col
+    numeric_cols = sorted(raw_df.select_dtypes(include="number").columns.tolist())
+
+    # Filter the variable list shown to the user:
+    # - Drop the depth column itself (used as Y axis).
+    # - Drop common metadata columns (coordinates, row numbers).
+    # - Drop "U_*" columns (analytical uncertainty / measurement error,
+    #   not concentration values). These are confusing next to the
+    #   actual measurements.
+    METADATA_COLS = {
+        "No", "N", "ID", "Id", "Sample", "Order", "Row",
+        "Latitud", "Longitud", "Latitude", "Longitude",
+        "Lat", "Lon", "Lng",
+    }
+    variable_options = [
+        c for c in numeric_cols
+        if c != depth_col
+        and c not in METADATA_COLS
+        and not c.startswith("U_")
+    ]
+```
+
+### 2.3 BUSCAR
+
+```python
+    with col2:
+        # Optional core column detection
+        core_col = None
+        possible_core_cols = [c for c in df.columns if c.lower() in ("core", "perfil", "profile")]
+        if possible_core_cols:
+            use_core = st.checkbox(f"Separate by core ({possible_core_cols[0]})", value=True)
+            if use_core:
+                core_col = possible_core_cols[0]
+```
+
+### 2.4 REEMPLAZAR POR
+
+```python
+    with col2:
+        # Optional core column detection
+        core_col = None
+        possible_core_cols = [c for c in df.columns if c.lower() in ("core", "perfil", "profile")]
+        if possible_core_cols:
+            use_core = st.checkbox(
+                f"Separate by core ({possible_core_cols[0]})",
+                value=True,
+                help=(
+                    "When a site has multiple sediment cores (e.g. Core A, "
+                    "Core B), this draws each core as a separate line. "
+                    "Useful to check reproducibility between cores at the "
+                    "same site."
+                ),
+            )
+            if use_core:
+                core_col = possible_core_cols[0]
+```
+
+---
+
+## 3. Cambio 2 — `aeda/viz/profiles.py`: quitar etiquetas duplicadas del grid
+
+**Archivo:** `aeda/viz/profiles.py`
+
+**Problema:** En la función que genera el grid multi-variable
+(`depth_profile_grid`), cada subplot recibe **dos veces** el nombre de la
+variable: una como `subplot_titles` (arriba) y otra como `title_text` del
+eje X (abajo). Hay que eliminar la del eje X y dejar solo la de arriba.
+
+### 3.1 BUSCAR
+
+```python
+        fig.update_xaxes(title_text=variable, row=row, col=col, gridcolor="#F0F0F0")
+        fig.update_yaxes(
+            title_text=f"{depth_col} (cm)" if col == 1 else None,
+            autorange="reversed",
+            gridcolor="#F0F0F0",
+            row=row, col=col,
+        )
+```
+
+### 3.2 REEMPLAZAR POR
+
+```python
+        # The variable name is already shown as the subplot title (top of each
+        # cell). Showing it again on the X-axis title would duplicate the
+        # label visually. We keep the X grid styled but omit the title.
+        fig.update_xaxes(row=row, col=col, gridcolor="#F0F0F0")
+        fig.update_yaxes(
+            title_text=f"{depth_col} (cm)" if col == 1 else None,
+            autorange="reversed",
+            gridcolor="#F0F0F0",
+            row=row, col=col,
+        )
+```
+
+---
+
+## 4. Cambio 3 — `app/views/audit.py`: reescritura completa
+
+**Archivo:** `app/views/audit.py`
+
+**Acción:** reemplazar el **contenido íntegro** del archivo por el siguiente
+código. Esto agrega las tres funciones que faltaban (`_render_run_summary`,
+`_render_validation`, `_render_failures`) y restaura el contenido real del
+tab Overview, además de añadir el bloque "Pipeline step status" al tab
+Technical.
+
+```python
 """
 Page: Audit
 
@@ -429,3 +609,93 @@ def _render_failures(results):
     )
     for step_name, msg in failures:
         st.warning(f"**{step_name}**: {msg}")
+```
+
+---
+
+## 5. Validación
+
+```bash
+# 1. Tests siguen verdes
+pytest tests/ -q
+```
+**Esperado:** `38 passed`.
+
+```bash
+# 2. Imports limpios
+python -c "
+import sys; sys.path.insert(0, '.')
+import importlib
+for m in ['app.views.audit', 'app.views.depth']:
+    importlib.import_module(m)
+    print(f'OK  {m}')
+"
+```
+**Esperado:** las 2 líneas con `OK`.
+
+```bash
+# 3. Smoke visual
+streamlit run app/main.py
+```
+
+**Verificación visual (con ISOVIDA cargado):**
+
+- ✅ **Depth Profiles → Variable dropdown:** ya NO aparecen `No`, `Latitud`,
+  `Longitud`, `U_< 2 µm`, `U_2 < G < 63 µm`, `U_> 63 µm`, `U_PPI550` en la lista.
+- ✅ **Depth Profiles → checkbox "Separate by core":** al hacer hover sobre
+  el "(?)" aparece el tooltip explicando qué son `(A)`, `(B)`.
+- ✅ **Depth Profiles → Multi-variable grid:** en cada subplot el nombre
+  de la variable aparece **una sola vez** (arriba como título), no duplicado.
+- ✅ **Audit → tab Overview:** ya NO está vacío. Muestra "Run summary"
+  (file, samples, variables, measurement variables + metadata detectada)
+  y "Input validation" (completeness, issues).
+- ✅ **Audit → tab Technical:** sigue mostrando Preprocessing trace y ML
+  metrics, y AHORA también muestra "Pipeline step status" entre los dos
+  (verde con "All pipeline steps completed successfully" o amarillo
+  enumerando los pasos que fallaron).
+
+---
+
+## 6. Si algo falla
+
+- Si **Audit Overview** sigue mostrando "Coming soon" después del cambio →
+  el reemplazo del archivo no se guardó o se sobrescribió por error. Re-aplicar
+  el contenido completo del bloque del paso 4.
+- Si aparece `AttributeError` sobre algún campo de `results` (p.ej.
+  `dataset_info`, `validation`, `preprocessing_log`) → el `AEDAResults`
+  no expone alguno de esos campos. Reportar el traceback completo para
+  evaluar caso por caso.
+- Si en el grid de Depth alguna variable se ve sin etiqueta arriba →
+  verificar que `subplot_titles=variables` sigue en `make_subplots(...)`.
+  El cambio solo quita `update_xaxes(title_text=...)`, no toca el
+  `subplot_titles`.
+- No tocar `aeda/engine/`, `aeda/pipeline/`, `tests/`. Solo los 3 archivos
+  mencionados.
+
+---
+
+## 7. Mensaje de commit sugerido
+
+```
+fix(ui): polish Depth Profiles + restore Audit Overview content
+
+Depth Profiles:
+- Variable selector now hides metadata (Latitud, Longitud, No) and analytical
+  uncertainty columns (U_*). Only real measurements are listed.
+- Multi-variable grid: removed the duplicated variable name on the X-axis
+  title; the subplot title (top) is the single source of truth.
+- "Separate by core" checkbox now has a tooltip explaining what (A)/(B)
+  represent for the scientific user.
+
+Audit:
+- Restored the Overview tab content: previously displayed a placeholder
+  "Coming soon" message. Now shows the Run Summary (file, samples,
+  variables, metadata) and the Input Validation report (completeness,
+  issues breakdown).
+- Added "Pipeline step status" to the Technical tab so users can see at a
+  glance whether all pipeline steps completed or some failed silently.
+- All three previously-missing private functions (_render_run_summary,
+  _render_validation, _render_failures) are now defined in app/views/audit.py.
+
+No engine changes; 38 tests pass.
+```

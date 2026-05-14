@@ -236,7 +236,10 @@ def depth_profile_grid(
                 hovertemplate=f"<b>{name}</b><br>Depth: %{{y}} cm<br>{variable}: %{{x:.2f}}<extra></extra>",
             ), row=row, col=col)
 
-        fig.update_xaxes(title_text=variable, row=row, col=col, gridcolor="#F0F0F0")
+        # The variable name is already shown as the subplot title (top of each
+        # cell). Showing it again on the X-axis title would duplicate the
+        # label visually. We keep the X grid styled but omit the title.
+        fig.update_xaxes(row=row, col=col, gridcolor="#F0F0F0")
         fig.update_yaxes(
             title_text=f"{depth_col} (cm)" if col == 1 else None,
             autorange="reversed",

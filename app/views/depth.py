@@ -41,8 +41,23 @@ def render():
     site_col = info.site_col
     numeric_cols = sorted(raw_df.select_dtypes(include="number").columns.tolist())
 
-    # Remove depth itself and other metadata from variable options
-    variable_options = [c for c in numeric_cols if c != depth_col]
+    # Filter the variable list shown to the user:
+    # - Drop the depth column itself (used as Y axis).
+    # - Drop common metadata columns (coordinates, row numbers).
+    # - Drop "U_*" columns (analytical uncertainty / measurement error,
+    #   not concentration values). These are confusing next to the
+    #   actual measurements.
+    METADATA_COLS = {
+        "No", "N", "ID", "Id", "Sample", "Order", "Row",
+        "Latitud", "Longitud", "Latitude", "Longitude",
+        "Lat", "Lon", "Lng",
+    }
+    variable_options = [
+        c for c in numeric_cols
+        if c != depth_col
+        and c not in METADATA_COLS
+        and not c.startswith("U_")
+    ]
 
     from aeda.viz.profiles import depth_profile, depth_profile_grid
 
@@ -77,7 +92,16 @@ def _render_single(df, variable_options, depth_col, site_col):
         core_col = None
         possible_core_cols = [c for c in df.columns if c.lower() in ("core", "perfil", "profile")]
         if possible_core_cols:
-            use_core = st.checkbox(f"Separate by core ({possible_core_cols[0]})", value=True)
+            use_core = st.checkbox(
+                f"Separate by core ({possible_core_cols[0]})",
+                value=True,
+                help=(
+                    "When a site has multiple sediment cores (e.g. Core A, "
+                    "Core B), this draws each core as a separate line. "
+                    "Useful to check reproducibility between cores at the "
+                    "same site."
+                ),
+            )
             if use_core:
                 core_col = possible_core_cols[0]
 
