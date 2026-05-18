@@ -23,6 +23,11 @@ from aeda.interpretation import (
     InterpretationReport,
     build_interpretation_report,
 )
+from aeda.engine.spatial_surface import (
+    SurfaceAnalysisResult,
+    surface_spatial_analysis,
+    DEFAULT_SURFACE_DEPTH_CM,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -54,6 +59,12 @@ class AEDAResults:
 
     # Environmental interpretation (EF, TEL/PEL, Birch)
     interpretation: Optional[InterpretationReport] = None
+
+    # Spatial analysis of the surface layer (0-10 cm by default).
+    # Runs after the interpretation step when the dataset has both a site
+    # column and a depth column. ``None`` when those prerequisites are not
+    # met or the filter yielded no samples.
+    surface_analysis: Optional["SurfaceAnalysisResult"] = None
 
     # Resolved parameters actually used in this run (after the auto-selector
     # has resolved any "auto" values from the plan). This is what the UI
@@ -181,6 +192,12 @@ class AEDAPipeline:
         dim_kwargs: Optional[dict] = None,
         clustering_kwargs: Optional[dict] = None,
         anomaly_kwargs: Optional[dict] = None,
+        # Surface-layer analysis: depth threshold (cm) used to filter samples
+        # for the inter-site spatial comparison. Yoelvis (LEA-CEAC) recommends
+        # 10 cm as the default; 5 and 20 cm are accepted alternatives. The
+        # analysis itself only runs when the dataset has both a site column
+        # and a depth column; otherwise this parameter is ignored.
+        surface_depth_cm: float = DEFAULT_SURFACE_DEPTH_CM,
     ):
         self.scale_method = scale_method
         self.impute_strategy = impute_strategy
@@ -197,6 +214,7 @@ class AEDAPipeline:
         self.dim_kwargs = dim_kwargs or {}
         self.clustering_kwargs = clustering_kwargs or {}
         self.anomaly_kwargs = anomaly_kwargs or {}
+        self.surface_depth_cm = float(surface_depth_cm)
 
     def run(
         self,
@@ -384,6 +402,26 @@ class AEDAPipeline:
                     f"Environmental interpretation failed: {type(e).__name__}: {e}"
                 )
                 results.interpretation = None
+
+        # 11. SURFACE-LAYER SPATIAL ANALYSIS
+        # Only runs when both a site column and a depth column are available.
+        # The analysis filters to the surface layer (default 10 cm), averages
+        # by site, and clusters sites. See aeda/engine/spatial_surface.py.
+        if info.site_col is not None and info.depth_col is not None:
+            try:
+                results.surface_analysis = surface_spatial_analysis(
+                    df,
+                    depth_col=info.depth_col,
+                    site_col=info.site_col,
+                    measurement_cols=info.measurement_cols,
+                    max_depth_cm=self.surface_depth_cm,
+                    coordinate_cols=info.coordinate_cols or None,
+                )
+            except Exception as e:
+                logger.warning(
+                    f"Surface spatial analysis failed: {type(e).__name__}: {e}"
+                )
+                results.surface_analysis = None
 
         return results
 

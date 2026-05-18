@@ -877,6 +877,46 @@ def _recommend_clustering(p: DataProfile) -> list[MethodRecommendation]:
     return recs
 
 
+def _recommend_spatial(p: DataProfile) -> list[MethodRecommendation]:
+    """Recommend a surface-layer inter-site spatial analysis when prerequisites are met.
+
+    The surface-layer analysis (default 0-10 cm) compares sites against each
+    other using only their most recent sediment. It requires:
+    - A site column (so there is something to group by), and
+    - A depth column (so a surface layer can be defined), and
+    - At least 3 distinct sites (otherwise clustering of sites is meaningless).
+
+    Yoelvis Bolaños (LEA-CEAC) noted that this is the standard approach in
+    inter-site environmental comparisons because deeper layers represent
+    different historical periods and can confound present-day spatial
+    patterns.
+    """
+    recs = []
+    if p.has_sites and p.has_depth and p.n_sites >= 3:
+        recs.append(MethodRecommendation(
+            category="spatial",
+            method="Surface-layer inter-site analysis (Hierarchical Ward)",
+            params={
+                "method": "surface_spatial",
+                "max_depth_cm": 10.0,
+                "aggregation": "site_mean",
+                "clustering": "hierarchical_ward",
+            },
+            reason=(
+                "Multi-site dataset with depth: compare sites using only their "
+                "surface (recent) sediment to avoid mixing historical periods."
+            ),
+            priority=1, confidence=Confidence.HIGH,
+            evidence=[
+                f"{p.n_sites} sites available for inter-site comparison.",
+                "Surface layer default is 0-10 cm (Yoelvis 2026, LEA-CEAC).",
+                "Aggregates each site to its mean to avoid bias from cores with more samples.",
+                "Standard approach: Birch (2003), Buchman (2008).",
+            ],
+        ))
+    return recs
+
+
 def _recommend_anomaly(p: DataProfile) -> list[MethodRecommendation]:
     recs = []
     contamination = min(max(p.pct_outliers_zscore / 100, 0.02), 0.15) if p.pct_outliers_zscore > 0 else 0.05
@@ -1016,6 +1056,7 @@ def recommend(profile: DataProfile) -> AnalysisPlan:
     recs.extend(_recommend_anomaly(profile))
     recs.extend(_recommend_correlation(profile))
     recs.extend(_recommend_feature_analysis(profile))
+    recs.extend(_recommend_spatial(profile))
     return AnalysisPlan(
         profile=profile, recommendations=recs,
         analysis_scales=_recommend_analysis_scales(profile),
