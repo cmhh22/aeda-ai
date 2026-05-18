@@ -52,8 +52,8 @@ def render():
     categorical_cols = raw_df.select_dtypes(exclude="number").columns.tolist()
 
     # ---- TAB LAYOUT ----
-    tab_pca, tab_corr, tab_cluster, tab_anomaly = st.tabs([
-        "PCA", "Correlations", "Clustering", "Anomalies"
+    tab_pca, tab_corr, tab_cluster, tab_anomaly, tab_surface = st.tabs([
+        "PCA", "Correlations", "Clustering", "Anomalies", "Surface (spatial)"
     ])
 
     # ============================================================
@@ -311,3 +311,11 @@ def render():
                     if raw_df is not None and len(anomaly_idx) > 0:
                         anomaly_rows = raw_df.loc[anomaly_idx]
                         st.dataframe(anomaly_rows, use_container_width=True)
+
+    # ============================================================
+    # TAB 5: SURFACE (SPATIAL)
+    # ============================================================
+    with tab_surface:
+        from app.views._surface_tab import render_surface_tab
+
+        render_surface_tab(results)
