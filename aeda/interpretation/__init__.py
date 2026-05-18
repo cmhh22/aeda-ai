@@ -32,6 +32,12 @@ from aeda.interpretation.reporter import (
     InterpretationReport,
     build_interpretation_report,
 )
+from aeda.interpretation.crust_reference import (
+    UPPER_CONTINENTAL_CRUST,
+    CrustReferenceValue,
+    get_crust_reference,
+    compare_to_crust,
+)
 
 __all__ = [
     "handle_lod_values",
@@ -46,4 +52,8 @@ __all__ = [
     "EFClass",
     "InterpretationReport",
     "build_interpretation_report",
+    "UPPER_CONTINENTAL_CRUST",
+    "CrustReferenceValue",
+    "get_crust_reference",
+    "compare_to_crust",
 ]

@@ -135,16 +135,16 @@ def _render_standard_controls(settings: dict) -> dict:
     with col3:
         clr_choice = st.selectbox(
             "CLR transform (compositional)",
-            options=["auto", "off", "on"],
-            index={None: 0, "auto": 0, False: 1, True: 2}.get(
+            options=["off", "on"],
+            index={None: 0, "auto": 0, False: 0, True: 1}.get(
                 settings.get("apply_clr"), 0
             ),
             help=(
                 "Apply Centered Log-Ratio transform for compositional data "
-                "(XRF, granulometry). 'auto' lets the brain decide."
+                "(XRF, granulometry). This transform is manual (opt-in)."
             ),
         )
-        out["apply_clr"] = {"auto": "auto", "off": False, "on": True}[clr_choice]
+        out["apply_clr"] = {"off": False, "on": True}[clr_choice]
 
     # Engine methods row
     st.markdown("**Analysis methods**")

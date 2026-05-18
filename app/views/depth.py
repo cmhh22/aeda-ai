@@ -149,10 +149,10 @@ def _render_grid(df, variable_options, depth_col, site_col):
         available_major = [c for c in plan.profile.major_element_cols if c in variable_options]
         if available_major:
             presets["Major elements"] = available_major
-    if plan and plan.profile.sediment_indicator_cols:
-        available_sed = [c for c in plan.profile.sediment_indicator_cols if c in variable_options]
+    if plan and plan.profile.ancillary_cols:
+        available_sed = [c for c in plan.profile.ancillary_cols if c in variable_options]
         if available_sed:
-            presets["Sediment indicators"] = available_sed
+            presets["Ancillary variables"] = available_sed
     presets["Custom selection"] = []
 
     col1, col2 = st.columns([1, 2])

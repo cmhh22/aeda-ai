@@ -144,3 +144,149 @@ def test_unknown_impute_strategy_raises():
 
     with pytest.raises(ValueError, match="Unsupported impute_strategy"):
         preprocess(df, impute_strategy="bogus_strategy")
+
+
+def test_trace_elements_includes_isovida_metals():
+    """Trace elements must include all metals present in ISOVIDA."""
+    from aeda.engine.auto_selector import TRACE_ELEMENTS
+
+    required = {"Cr", "Co", "Ni", "Cu", "Zn", "As", "Mo", "Pb"}
+    missing = required - TRACE_ELEMENTS
+    assert not missing, f"Missing trace elements in ISOVIDA: {missing}"
+
+
+def test_ancillary_variables_renamed():
+    """Sediment indicators were renamed to ancillary variables (Yoelvis feedback)."""
+    from aeda.engine import auto_selector
+
+    assert hasattr(auto_selector, "ANCILLARY_VARIABLES")
+    expected = {"TOC", "OM", "PPI550", "PPI950", "HC", "CaCO3"}
+    assert auto_selector.ANCILLARY_VARIABLES == expected
+
+
+def test_frx_typical_rule_removed():
+    """Rule 7 (FRX typical detection by sum) was removed per Yoelvis feedback."""
+    import inspect
+
+    from aeda.engine.auto_selector import profile_dataset
+
+    src = inspect.getsource(profile_dataset)
+    assert "frx_typical" not in src.lower(), "Rule 7 (FRX typical sum) should be removed"
+
+
+def test_correlation_block_threshold_is_06():
+    """Per Yoelvis feedback, threshold lowered from 0.7 to 0.6."""
+    from aeda.engine.auto_selector import CORRELATION_BLOCK_THRESHOLD
+
+    assert CORRELATION_BLOCK_THRESHOLD == 0.6
+
+
+def test_mixed_units_from_dictionary_preferred_over_heuristic():
+    """When a units dictionary is provided, it takes precedence over the heuristic."""
+    from aeda.engine.auto_selector import detect_mixed_units
+
+    df = pd.DataFrame(
+        {
+            "Al": [5.0, 6.0, 7.0],
+            "Pb": [10.0, 12.0, 15.0],
+        }
+    )
+    units = {"Al": "%", "Pb": "mg/kg"}
+    result = detect_mixed_units(df, major_cols=["Al"], trace_cols=["Pb"], units_dict=units)
+    assert result["mixed_units_detected"] is True
+    assert result["method"] == "dictionary"
+
+
+def test_mixed_units_falls_back_to_heuristic_when_no_dictionary():
+    """When no units dictionary is available, fall back to numeric heuristic."""
+    from aeda.engine.auto_selector import detect_mixed_units
+
+    df = pd.DataFrame(
+        {
+            "Al": [5.0, 6.0, 7.0],
+            "Pb": [40.0, 50.0, 60.0],
+        }
+    )
+    result = detect_mixed_units(df, major_cols=["Al"], trace_cols=["Pb"], units_dict=None)
+    assert result["method"] == "heuristic"
+
+
+def test_isovida_units_loaded_from_dictionary():
+    """Integration: ISOVIDA dataset dictionary specifies units for each variable."""
+    EXCLUDE = [
+        "No",
+        "Code",
+        "Site_Name",
+        "Pret_Code",
+        "Código_muestra",
+        "Sitio_muestreo",
+        "Fecha_muestreo",
+        "Core",
+        "Latitud",
+        "Longitud",
+        "Profundidad",
+    ]
+    p = AEDAPipeline(impute_strategy="median")
+    r = p.run(
+        "data/BD_ISOVIDA_MANGLARES2023_rectificadaYBA_230326.xlsx",
+        exclude_cols=EXCLUDE,
+        sheet_name="DATA",
+    )
+    assert hasattr(r.dataset_info, "units")
+    units = r.dataset_info.units
+    if units:
+        major_in_pct = any("%" in units.get(c, "") for c in ["Al", "Fe", "Si", "Ca"] if c in units)
+        assert major_in_pct, "Expected at least one major element to be in % per ISOVIDA dictionary"
+
+
+def test_clr_not_applied_automatically():
+    """Per Yoelvis feedback, CLR must NOT appear in preprocessing log unless explicitly enabled."""
+    import os
+    import tempfile
+
+    rng = np.random.default_rng(42)
+    n = 50
+    a = rng.uniform(20, 40, n)
+    b = rng.uniform(20, 40, n)
+    c = 100 - a - b
+    other = rng.normal(50, 10, n)
+    df = pd.DataFrame({"clay": a, "silt": b, "sand": c, "other": other})
+
+    p = AEDAPipeline(impute_strategy="median", apply_clr=False, run_interpretation=False)
+    with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as f:
+        df.to_csv(f.name, index=False)
+        path = f.name
+    try:
+        r = p.run(path)
+        clr_entries = [
+            s for s in (r.preprocessing_log.steps if r.preprocessing_log else [])
+            if "clr" in str(s).lower()
+        ]
+        assert len(clr_entries) == 0, "CLR should not appear in log when apply_clr=False"
+    finally:
+        os.unlink(path)
+
+
+def test_clr_applied_when_explicitly_enabled():
+    """When apply_clr=True, CLR should appear in preprocessing log."""
+    import os
+    import tempfile
+
+    rng = np.random.default_rng(42)
+    n = 50
+    a = rng.uniform(20, 40, n)
+    b = rng.uniform(20, 40, n)
+    df = pd.DataFrame({"clay": a, "silt": b, "sand": 100 - a - b, "other": rng.normal(50, 10, n)})
+    with tempfile.NamedTemporaryFile(suffix=".csv", delete=False) as f:
+        df.to_csv(f.name, index=False)
+        path = f.name
+    try:
+        p = AEDAPipeline(impute_strategy="median", apply_clr=True, run_interpretation=False)
+        r = p.run(path)
+        clr_entries = [
+            s for s in (r.preprocessing_log.steps if r.preprocessing_log else [])
+            if "clr" in str(s).lower()
+        ]
+        assert len(clr_entries) > 0, "CLR should appear in log when apply_clr=True"
+    finally:
+        os.unlink(path)

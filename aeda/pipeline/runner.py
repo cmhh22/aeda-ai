@@ -166,7 +166,8 @@ class AEDAPipeline:
         clustering_method: str = "auto",
         anomaly_method: str = "auto",
         correlation_method: str = "compare",
-        apply_clr: bool | str | None = False,
+        # CLR is opt-in only. It is never auto-applied by the runner.
+        apply_clr: bool = False,
         contamination: Optional[float] = None,
         # Environmental interpretation parameters
         run_interpretation: bool = True,
@@ -241,6 +242,7 @@ class AEDAPipeline:
             site_col=info.site_col,
             n_sites=df[info.site_col].nunique() if info.site_col else 0,
             original_df=df,
+            units_dict=info.units,
         )
         results.plan = plan
 
@@ -268,18 +270,11 @@ class AEDAPipeline:
                         # Structured-missing data: subset analysis is not implemented yet.
                         # Fall back to median, a safe default for environmental datasets.
                         effective_impute = "median"
-                if "apply_clr" in rec.params:
-                    # Only override user choice if the user didn't set an explicit boolean.
-                    if self.apply_clr is None or self.apply_clr == "auto":
-                        effective_clr = rec.params["apply_clr"]
-
         # Final fallbacks for any remaining "auto" value
         if effective_scale == "auto":
             effective_scale = "standard"
         if effective_impute == "auto":
             effective_impute = "median"
-        if effective_clr == "auto":
-            effective_clr = False
 
         # Resolve contamination: if the user did not set it explicitly, use
         # the value recommended by the auto-selector (primary anomaly rec-

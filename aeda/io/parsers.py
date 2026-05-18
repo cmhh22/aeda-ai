@@ -26,7 +26,7 @@ class DatasetInfo:
     site_col: Optional[str] = None
     has_dictionary: bool = False
     dictionary: Optional[pd.DataFrame] = None
-    units: dict = field(default_factory=dict)
+    units: dict[str, str] = field(default_factory=dict)
     file_format: str = ""
 
 

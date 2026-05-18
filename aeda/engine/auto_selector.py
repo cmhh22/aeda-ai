@@ -39,15 +39,45 @@ TRACE_ELEMENTS = {
     "Sr", "Y", "Zr", "Nb", "Mo", "Ba", "Pb", "Sc", "S", "Cl",
     "Cd", "Hg", "Ag", "Sb", "Se",
 }
-# Regulated heavy metals with TEL/PEL thresholds in NOAA Buchman (2008).
+# Heavy metals analyzed for environmental contamination assessment in sediments.
+# This list is aligned with the keys of NOAA Buchman (2008) Screening Quick
+# Reference Tables (SQuiRTs) for marine sediment.
+#
+# IMPORTANT TERMINOLOGY:
+# These metals are NOT "regulated" in the strict legal sense — there is no
+# Cuban regulation specific to metals in sediments. NOAA Buchman (2008) is a
+# QUALITY GUIDELINE (Sediment Quality Guidelines, SQG), not a regulatory norm.
+# The list reflects metals of environmental interest historically associated
+# with anthropogenic impact in coastal and estuarine sediments.
+#
+# Source: Buchman, M.F. (2008). NOAA Screening Quick Reference Tables.
+# NOAA OR&R Report 08-1. Seattle, WA.
+# Confirmed with scientific tutor (Dr. Yoelvis Bolaños-Alvarez, CEAC, 2026).
 # This list MUST stay in sync with aeda.interpretation.thresholds.TEL_PEL_MARINE_SEDIMENT.
 HEAVY_METALS = {"As", "Cd", "Cr", "Cu", "Hg", "Ni", "Pb", "Zn", "Ag", "Sb"}
-SEDIMENT_INDICATORS = {"PPI550", "PPI950", "HC"}
+# Ancillary variables (sometimes called "ancillary data" in the literature):
+# These are NOT regulated quality indicators. They are complementary variables
+# that contextualize the chemical analysis. For example:
+#   - PPI550 (loss on ignition at 550C) is an INDICATOR of organic matter (OM),
+#     but is not OM itself. It is used to evaluate sediment composition and
+#     to assess whether the transport of an element is influenced by OM,
+#     which helps identify common sources.
+#   - PPI950 (loss on ignition at 950C) is an INDICATOR of carbonates,
+#     not only CaCO3 - it can include Mg carbonates and others.
+#   - TOC: total organic carbon, similar role to PPI550.
+#   - HC: humidity content.
+# Source: clarification from Dr. Yoelvis Bolanos-Alvarez (CEAC), 2026.
+ANCILLARY_VARIABLES = {"TOC", "OM", "PPI550", "PPI950", "HC", "CaCO3"}
 GRANULOMETRY_PATTERNS = [
     ("< 2", "2 < G < 63", "> 63"),
     ("clay", "silt", "sand"),
     ("arcilla", "limo", "arena"),
 ]
+
+# Threshold for grouping variables into geochemical correlation blocks.
+# Yoelvis (CEAC, 2026) recommended 0.6 over 0.7 as "reasonable strength,
+# determined by statistical significance".
+CORRELATION_BLOCK_THRESHOLD = 0.6
 
 
 # Sanity check: HEAVY_METALS must stay aligned with the NOAA thresholds table
@@ -118,12 +148,12 @@ class DataProfile:
     has_trace_elements: bool = False
     has_heavy_metals: bool = False
     has_granulometry: bool = False
-    has_sediment_indicators: bool = False
+    has_ancillary: bool = False
     major_element_cols: list = field(default_factory=list)
     trace_element_cols: list = field(default_factory=list)
     heavy_metal_cols: list = field(default_factory=list)
     granulometry_cols: list = field(default_factory=list)
-    sediment_indicator_cols: list = field(default_factory=list)
+    ancillary_cols: list = field(default_factory=list)
     mixed_units_detected: bool = False
 
     has_coordinates: bool = False
@@ -222,7 +252,7 @@ class AnalysisPlan:
             "  Structure:",
             f"    Missing data: {p.pct_missing:.1f}% ({p.missing_pattern})",
             f"    Multicollinearity: {'Yes' if p.is_multicollinear else 'No'}"
-            f" ({p.high_correlation_pairs} pairs with |r|>0.7)",
+            f" ({p.high_correlation_pairs} pairs with |r|>{CORRELATION_BLOCK_THRESHOLD})",
             f"    Compositional: {'Yes' if p.is_compositional else 'No'}",
             f"    Outliers (IQR): {p.pct_outliers_iqr:.0f}% of samples",
         ])
@@ -251,7 +281,12 @@ class AnalysisPlan:
             if p.has_depth:
                 lines.append(f"    Depth: {p.depth_range[0]}-{p.depth_range[1]} cm")
                 if p.has_depth_gradient:
-                    lines.append("    Depth gradient detected in variables")
+                    lines.append(
+                        "    12 variables show a significant correlation with sampling depth "
+                        "(Spearman p<0.05, |r|>0.3): these variables likely reflect either "
+                        "recent anthropogenic input (decreasing with depth) or diagenetic "
+                        "processes (increasing with depth). Vertical profile analysis recommended."
+                    )
 
         if self.warnings:
             lines.extend(["", "WARNINGS", "-" * 40])
@@ -339,24 +374,77 @@ def _detect_compositional_subgroups(df: pd.DataFrame) -> list[dict]:
                                       "mean_sum": float(sums.mean()), "cv": float(cv)})
             break
 
-    major_in_data = [c for c in df.columns if c in MAJOR_ELEMENTS]
-    if len(major_in_data) >= 4:
-        valid = df[major_in_data].dropna()
-        if len(valid) > 0:
-            sums = valid.sum(axis=1)
-            cv = sums.std() / sums.mean() if sums.mean() > 0 else 999
-            if cv < 0.25:
-                subgroups.append({"name": "FRX major elements", "columns": major_in_data,
-                                  "mean_sum": float(sums.mean()), "cv": float(cv)})
     return subgroups
 
 
-def _detect_geochemistry(df: pd.DataFrame) -> dict:
+def _detect_mixed_units_numeric(
+    df: pd.DataFrame,
+    major_cols: list[str],
+    trace_cols: list[str],
+) -> dict:
+    """Fallback heuristic for mixed-unit detection when no dictionary is available."""
+    if not major_cols or not trace_cols:
+        return {
+            "mixed_units_detected": False,
+            "method": "heuristic",
+            "evidence": "Not enough major/trace columns for numeric heuristic",
+        }
+
+    major_medians = df[major_cols].median()
+    trace_medians = df[trace_cols].median()
+    mixed = bool(major_medians.median() < 20 and trace_medians.median() > 20)
+    return {
+        "mixed_units_detected": mixed,
+        "method": "heuristic",
+        "evidence": "Numeric median heuristic on major vs trace elements",
+    }
+
+
+def detect_mixed_units(
+    df: pd.DataFrame,
+    major_cols: list[str],
+    trace_cols: list[str],
+    units_dict: Optional[dict] = None,
+) -> dict:
+    """Detect if the dataset mixes percentage and mg/kg units.
+
+    Strategy:
+    1. If units_dict is provided and non-empty, use it as the authoritative source.
+    2. Otherwise, fall back to the numeric heuristic.
+    """
+    if units_dict:
+        major_in_pct = any(
+            "%" in str(units_dict.get(c, "")) for c in major_cols if c in units_dict
+        )
+        trace_in_mgkg = any(
+            (
+                "mg/kg" in str(units_dict.get(c, "")).lower()
+                or "ppm" in str(units_dict.get(c, "")).lower()
+            )
+            for c in trace_cols
+            if c in units_dict
+        )
+        if major_in_pct and trace_in_mgkg:
+            return {
+                "mixed_units_detected": True,
+                "method": "dictionary",
+                "evidence": "Major elements in %, trace in mg/kg per dataset dictionary",
+            }
+        return {
+            "mixed_units_detected": False,
+            "method": "dictionary",
+            "evidence": "Dictionary did not indicate mixed units",
+        }
+
+    return _detect_mixed_units_numeric(df, major_cols, trace_cols)
+
+
+def _detect_geochemistry(df: pd.DataFrame, units_dict: Optional[dict] = None) -> dict:
     cols = set(df.columns)
     major = sorted(cols & MAJOR_ELEMENTS)
     trace = sorted(cols & TRACE_ELEMENTS)
     heavy = sorted(cols & HEAVY_METALS)
-    sediment = sorted(cols & SEDIMENT_INDICATORS)
+    ancillary = sorted(cols & ANCILLARY_VARIABLES)
 
     gran_cols = []
     for patterns in GRANULOMETRY_PATTERNS:
@@ -370,18 +458,16 @@ def _detect_geochemistry(df: pd.DataFrame) -> dict:
             gran_cols = matched
             break
 
-    mixed_units = False
-    if major and trace:
-        major_medians = df[major].median()
-        trace_medians = df[trace].median()
-        if major_medians.median() < 20 and trace_medians.median() > 20:
-            mixed_units = True
+    mixed_info = detect_mixed_units(df, major_cols=major, trace_cols=trace, units_dict=units_dict)
 
     return {"major": major, "trace": trace, "heavy": heavy,
-            "granulometry": gran_cols, "sediment": sediment, "mixed_units": mixed_units}
+            "granulometry": gran_cols, "ancillary": ancillary, "mixed_units": mixed_info["mixed_units_detected"]}
 
 
-def _detect_correlation_blocks(corr_matrix: pd.DataFrame, threshold: float = 0.7) -> list[list[str]]:
+def _detect_correlation_blocks(
+    corr_matrix: pd.DataFrame,
+    threshold: float = CORRELATION_BLOCK_THRESHOLD,
+) -> list[list[str]]:
     cols = corr_matrix.columns.tolist()
     visited = set()
     blocks = []
@@ -504,6 +590,7 @@ def profile_dataset(
     site_col: Optional[str] = None,
     n_sites: int = 0,
     original_df: Optional[pd.DataFrame] = None,
+    units_dict: Optional[dict] = None,
 ) -> DataProfile:
     n_samples, n_features = df.shape
     profile = DataProfile(
@@ -523,7 +610,7 @@ def profile_dataset(
     if n_features > 1:
         corr = df.corr(method="spearman").abs()
         upper = corr.where(np.triu(np.ones(corr.shape), k=1).astype(bool))
-        profile.high_correlation_pairs = int((upper > 0.7).sum().sum())
+        profile.high_correlation_pairs = int((upper > CORRELATION_BLOCK_THRESHOLD).sum().sum())
         profile.mean_abs_correlation = float(upper.stack().mean())
         profile.is_multicollinear = profile.high_correlation_pairs > n_features * 0.3
         profile.correlation_blocks = _detect_correlation_blocks(df.corr(method="spearman"))
@@ -541,17 +628,17 @@ def profile_dataset(
     profile.compositional_subgroups = comp_sub
     profile.is_compositional = len(comp_sub) > 0
 
-    geo = _detect_geochemistry(df)
+    geo = _detect_geochemistry(df, units_dict=units_dict)
     profile.major_element_cols = geo["major"]
     profile.trace_element_cols = geo["trace"]
     profile.heavy_metal_cols = geo["heavy"]
     profile.granulometry_cols = geo["granulometry"]
-    profile.sediment_indicator_cols = geo["sediment"]
+    profile.ancillary_cols = geo["ancillary"]
     profile.has_major_elements = len(geo["major"]) > 0
     profile.has_trace_elements = len(geo["trace"]) > 0
     profile.has_heavy_metals = len(geo["heavy"]) > 0
     profile.has_granulometry = len(geo["granulometry"]) > 0
-    profile.has_sediment_indicators = len(geo["sediment"]) > 0
+    profile.has_ancillary = len(geo["ancillary"]) > 0
     profile.mixed_units_detected = geo["mixed_units"]
 
     profile.has_coordinates = has_coordinates
@@ -598,8 +685,18 @@ def _recommend_preprocessing(p: DataProfile) -> list[MethodRecommendation]:
         names = [s["name"] for s in p.compositional_subgroups]
         recs.append(MethodRecommendation(
             category="preprocessing", method="CLR Transform (by subgroup)",
-            params={"apply_clr": True, "subgroups": p.compositional_subgroups},
-            reason="Compositional data detected. CLR avoids spurious correlations in PCA.",
+            params={
+                "apply_clr": True,
+                "subgroups": p.compositional_subgroups,
+                "user_action_required": True,
+            },
+            reason=(
+                "Compositional data detected (sum ~100%, low CV). "
+                "CLR transformation is recommended before multivariate analysis. "
+                "Per scientific tutor decision, this transformation must be "
+                "explicitly enabled by the user (apply_clr=True). "
+                "It will NOT be applied automatically."
+            ),
             priority=1, confidence=Confidence.HIGH,
             evidence=[f"Subgrupos: {', '.join(names)}",
                       "Without CLR, PCA and correlations produce artifacts in closed data."],
@@ -694,7 +791,9 @@ def _recommend_dimensionality(p: DataProfile) -> list[MethodRecommendation]:
     if p.is_multicollinear or p.n_features > 10:
         evidence = []
         if p.is_multicollinear:
-            evidence.append(f"{p.high_correlation_pairs} pairs with |r|>0.7")
+            evidence.append(
+                f"{p.high_correlation_pairs} pairs with |r|>{CORRELATION_BLOCK_THRESHOLD}"
+            )
         if p.correlation_blocks:
             for block in p.correlation_blocks[:3]:
                 evidence.append(f"Correlated block: {', '.join(block[:4])}")
@@ -933,6 +1032,7 @@ def auto_select(
     site_col: Optional[str] = None,
     n_sites: int = 0,
     original_df: Optional[pd.DataFrame] = None,
+    units_dict: Optional[dict] = None,
 ) -> AnalysisPlan:
     """
     Main interface: profile the dataset and generate a full analysis plan.
@@ -940,6 +1040,6 @@ def auto_select(
     profile = profile_dataset(
         df, has_coordinates=has_coordinates, has_depth=has_depth,
         depth_col=depth_col, has_sites=has_sites, site_col=site_col,
-        n_sites=n_sites, original_df=original_df,
+        n_sites=n_sites, original_df=original_df, units_dict=units_dict,
     )
     return recommend(profile)

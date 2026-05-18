@@ -91,16 +91,28 @@ def render():
     all_cols = preview_df.columns.tolist()
     non_numeric = preview_df.select_dtypes(exclude="number").columns.tolist()
 
-    # Common metadata column names across Spanish and English datasets
+    # Common metadata column names across Spanish and English datasets.
+    # Note: short names like "X" and "Y" are ambiguous (Y is also the symbol
+    # for Yttrium in geochemistry). We only flag them as metadata when there
+    # is evidence that the dataset uses them as coordinates — specifically
+    # when BOTH X and Y appear together, or when explicit UTM variants exist.
     METADATA_COLUMN_NAMES = {
-        # Coordinates
+        # Explicit coordinate names (unambiguous)
         "Latitud", "Longitud", "Latitude", "Longitude", "Lat", "Lon", "Lng",
         "X_UTM", "Y_UTM", "UTM_X", "UTM_Y",
+        "Easting", "Northing", "Coord_X", "Coord_Y",
         # Row numbers / sample IDs that may be numeric
         "No", "N", "ID", "Id", "Sample_ID", "SampleID", "Sample_No", "Sample",
-        "Order", "Row",
+        "Order", "Row", "Index",
     }
     numeric_metadata = [c for c in all_cols if c in METADATA_COLUMN_NAMES]
+
+    # Ambiguous coordinate names: X and Y. Only treat them as metadata when
+    # they appear *together* (typical of UTM coord pairs). This preserves
+    # the ability to analyze a standalone column named "Y" (e.g., Yttrium)
+    # when it isn't paired with an X coordinate.
+    if "X" in all_cols and "Y" in all_cols:
+        numeric_metadata.extend([c for c in ("X", "Y") if c in all_cols])
 
     suggested_exclude = sorted(set(non_numeric) | set(numeric_metadata))
 
@@ -197,7 +209,7 @@ def _run_pipeline(filepath, sheet_name, exclude_cols, impute, dim_method, cluste
             impute_strategy=impute,
             dim_method=dim_method,
             clustering_method=cluster_method,
-            apply_clr="auto",
+            apply_clr=False,
         )
 
         progress.progress(10, text="Loading and validating data...")
