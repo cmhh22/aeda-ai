@@ -51,27 +51,38 @@ def render():
     # Detect available categorical columns for coloring
     categorical_cols = raw_df.select_dtypes(exclude="number").columns.tolist()
 
-    # ---- TAB LAYOUT ----
+    # The first tab adapts to whatever dimensionality-reduction method was
+    # applied in this run (PCA, UMAP, t-SNE, ...). This avoids showing a
+    # hardcoded "PCA" label when the user re-runs with a different method.
+    dim_method = results.dim_reduction.method if results.dim_reduction is not None else "—"
+    tab_label_dim = f"Dimensionality ({dim_method})"
     tab_pca, tab_corr, tab_cluster, tab_anomaly, tab_surface = st.tabs([
-        "PCA", "Correlations", "Clustering", "Anomalies", "Surface (spatial)"
+        tab_label_dim, "Correlations", "Clustering", "Anomalies", "Surface (spatial)"
     ])
 
     # ============================================================
-    # TAB 1: PCA
+    # TAB 1: DIMENSIONALITY REDUCTION (PCA biplot / embedding scatter)
     # ============================================================
     with tab_pca:
-        if results.dim_reduction is None or results.dim_reduction.method != "PCA":
-            st.warning("PCA was not executed or failed. Check the Analysis Plan for details.")
-        else:
+        if results.dim_reduction is None:
+            st.warning(
+                "Dimensionality reduction was not executed or failed. "
+                "Check the Analysis Plan for details."
+            )
+        elif results.dim_reduction.method == "PCA":
             from aeda.viz.dimensionality import pca_biplot, pca_scree_plot
 
             st.subheader("PCA biplot")
+            st.caption(
+                "Each point is one sample. Samples close together have a similar "
+                "chemical fingerprint. **Arrows** show how each variable pulls the "
+                "samples — arrows pointing the same way mean those variables move "
+                "together. Long arrows = the variable contributes a lot to the "
+                "separation; short arrows = it contributes little."
+            )
 
             col1, col2, col3 = st.columns([2, 1, 1])
             with col1:
-                # Build the color-by options: categorical columns first
-                # (best for site/group comparisons), then numeric metadata
-                # columns from the whitelist (best for gradients).
                 numeric_options = [
                     c for c in raw_df.columns
                     if c in NUMERIC_COLOR_WHITELIST
@@ -114,11 +125,21 @@ def render():
 
             # Scree plot
             with st.expander("Scree plot (variance explained)"):
+                st.caption(
+                    "Each bar shows how much of the total variability is captured by that "
+                    "component. Use this to pick a sensible number of components without "
+                    "losing meaningful structure."
+                )
                 fig_scree = pca_scree_plot(results.dim_reduction)
                 st.plotly_chart(fig_scree, use_container_width=True)
 
             # Loadings table
             with st.expander("Loadings table"):
+                st.caption(
+                    "How strongly each variable contributes to each principal component. "
+                    "Same-sign loadings mean variables move together; opposite signs mean "
+                    "they move in opposite directions."
+                )
                 loadings = results.dim_reduction.loadings
                 if loadings is not None:
                     st.dataframe(
@@ -126,6 +147,33 @@ def render():
                         use_container_width=True,
                         height=400,
                     )
+        else:
+            # Non-linear embedding (UMAP / t-SNE): no loadings, no scree —
+            # render a clean 2D scatter and explain the differences from PCA.
+            from aeda.viz.dimensionality import embedding_scatter
+
+            method_name = results.dim_reduction.method
+            st.subheader(f"{method_name} embedding")
+            st.caption(
+                f"{method_name} is a non-linear projection: distances on the plot reflect "
+                "local similarity rather than global variance. Useful for visualizing groups, "
+                "but not for biplot-style interpretation (no loadings or scree)."
+            )
+
+            color_options = ["None"] + categorical_cols
+            color_by = st.selectbox(
+                "Color by", options=color_options,
+                index=1 if categorical_cols else 0,
+                key="emb_color",
+            )
+
+            fig = embedding_scatter(
+                results.dim_reduction,
+                df=raw_df,
+                color_by=color_by if color_by != "None" else None,
+                title=f"{method_name} 2D embedding",
+            )
+            st.plotly_chart(fig, use_container_width=True)
 
     # ============================================================
     # TAB 2: CORRELATIONS
@@ -137,6 +185,13 @@ def render():
             from aeda.viz.correlations import correlation_heatmap, cross_correlation_heatmap
 
             st.subheader("Correlation matrix")
+            st.caption(
+                "**Red** = the two variables tend to move together (rise and fall in sync). "
+                "**Blue** = they move in opposite directions. **White** = no relationship. "
+                "With **cluster-reorder axes** ON, similar variables are grouped along the "
+                "diagonal, making blocks of co-varying elements (e.g. lithogenic vs. "
+                "anthropogenic) easier to spot visually."
+            )
 
             col1, col2 = st.columns([1, 1])
             with col1:
@@ -162,6 +217,11 @@ def render():
             # Significant pairs
             if hasattr(corr_result, "significant_pairs") and corr_result.significant_pairs:
                 with st.expander(f"Significant correlations ({corr_result.n_strong} strong, {corr_result.n_moderate} moderate)"):
+                    st.caption(
+                        "Variable pairs sorted by the strength of their association. "
+                        "**Strong** (|r| ≥ 0.7) indicates a robust relationship; "
+                        "**Moderate** (0.5 ≤ |r| < 0.7) suggests weaker but consistent links."
+                    )
                     import pandas as pd
                     pairs_df = pd.DataFrame(corr_result.significant_pairs[:30])
                     st.dataframe(pairs_df, use_container_width=True)
@@ -171,15 +231,23 @@ def render():
                 nonlinear = results.correlations.get("nonlinear_candidates", [])
                 if nonlinear:
                     with st.expander(f"Nonlinear relationship candidates ({len(nonlinear)})"):
+                        st.caption(
+                            "Pairs where Spearman rank correlation substantially exceeds Pearson — "
+                            "this suggests a monotonic but non-linear relationship worth visual follow-up."
+                        )
                         import pandas as pd
                         nl_df = pd.DataFrame(nonlinear[:20])
                         st.dataframe(nl_df, use_container_width=True)
-                        st.caption("These variable pairs have much higher Spearman than Pearson correlation, suggesting a nonlinear relationship.")
 
             # Cross-correlation
             plan = results.plan
             if plan and plan.profile.has_heavy_metals and plan.profile.has_granulometry:
                 with st.expander("Heavy metals vs. grain size"):
+                    st.caption(
+                        "Spearman correlation between each heavy metal and each grain-size "
+                        "fraction. Strong positive correlations of metals with fine fractions "
+                        "may indicate particulate contamination."
+                    )
                     fig_cross = cross_correlation_heatmap(
                         raw_df,
                         group_a=plan.profile.heavy_metal_cols,
@@ -200,6 +268,14 @@ def render():
             from aeda.viz.clustering import cluster_scatter, cluster_composition
 
             st.subheader("Cluster analysis")
+            st.caption(
+                "**Left:** samples colored by the chemical groups the algorithm found "
+                "automatically. **Right:** the same samples colored by a known label "
+                "(e.g. site). If both panels look similar, chemistry and the chosen "
+                "label agree — useful evidence that site-level differences are real. "
+                "If they look different, chemistry is driven by something other than "
+                "that label (depth, contamination, mineralogy)."
+            )
 
             compare_col = st.selectbox(
                 "Compare clusters with",
@@ -245,12 +321,23 @@ def render():
             # Composition chart
             if compare_col != "None":
                 with st.expander("Cluster composition"):
+                    st.caption(
+                        "How each cluster is composed in terms of the comparison label. "
+                        "If a cluster is dominated by a single site, location likely explains "
+                        "the chemical grouping; if mixed, chemistry may be driven by another "
+                        "factor (depth, contamination, or mineralogy)."
+                    )
                     fig_comp = cluster_composition(results.clustering, raw_df, compare_col)
                     st.plotly_chart(fig_comp, use_container_width=True)
 
             # Feature importance
             if results.feature_importance is not None:
                 with st.expander("Variables that most discriminate between clusters"):
+                    st.caption(
+                        "Variables ranked by how useful they are to tell clusters apart. "
+                        "High-ranking variables are the best clues when interpreting what each "
+                        "cluster represents — look at these first when assigning a label."
+                    )
                     import pandas as pd
                     imp = results.feature_importance.importances
                     imp_df = pd.DataFrame({"Variable": imp.index, "Importance": imp.values})
@@ -264,6 +351,13 @@ def render():
             st.warning("Anomaly detection was not executed.")
         else:
             st.subheader("Anomaly detection")
+            st.caption(
+                "Samples flagged as **unusually different** from the rest of the dataset. "
+                "These are not automatically 'contaminated' or 'wrong' — just statistical "
+                "outliers in the multivariate chemical space. Each one deserves a look: "
+                "they may be hotspots (real contamination), measurement errors, or "
+                "samples from a chemically distinct sub-environment."
+            )
 
             col1, col2 = st.columns(2)
             col1.metric("Method", results.anomalies.method)
@@ -306,6 +400,11 @@ def render():
             # Anomaly details
             if results.anomalies.n_anomalies > 0:
                 with st.expander("Anomalous samples"):
+                    st.caption(
+                        "All the columns from the original Excel for each flagged sample. "
+                        "Use this table to inspect the full record, check suspect values, "
+                        "and cross-check against laboratory notes."
+                    )
                     import pandas as pd
                     anomaly_idx = results.anomalies.anomaly_indices
                     if raw_df is not None and len(anomaly_idx) > 0:

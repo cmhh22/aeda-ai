@@ -138,9 +138,17 @@ def _render_single(df, variable_options, depth_col, site_col):
         st.dataframe(stats, use_container_width=True)
 
 
-def _render_grid(df, variable_options, depth_col, site_col):
+def _render_grid(df, variable_options, depth_col, site_col, units=None):
     """Render a grid of depth profiles for multiple variables."""
     from aeda.viz.profiles import depth_profile_grid
+
+    st.caption(
+        "Compare several variables side-by-side. Each panel is **read top-to-bottom: "
+        "0 cm is the most recent sediment, deeper rows are older**. A line that rises "
+        "(toward the surface) means the concentration has increased over time at that "
+        "site; a line that stays flat means the chemistry is stable. "
+        "**Tip:** start with 3–4 variables to keep the figure readable, then add more."
+    )
 
     # Preset groups for convenience
     plan = st.session_state.results.plan if st.session_state.results else None
@@ -162,26 +170,45 @@ def _render_grid(df, variable_options, depth_col, site_col):
 
     col1, col2 = st.columns([1, 2])
     with col1:
-        preset = st.selectbox("Preset", options=list(presets.keys()))
+        preset = st.selectbox(
+            "Preset",
+            options=list(presets.keys()),
+            help=(
+                "Pre-built variable groups based on your dataset's geochemistry. "
+                "Pick **Custom** to choose any combination."
+            ),
+        )
 
-    default_vars = presets[preset] if preset != "Custom selection" else variable_options[:6]
+    # For Heavy metals we start with the 4 NOAA priority metals to keep the
+    # grid readable; the user can still add more from the multiselect.
+    if preset == "Heavy metals":
+        priority = [m for m in ["Pb", "Zn", "Cu", "As"] if m in presets[preset]]
+        default_vars = priority if priority else presets[preset][:4]
+    elif preset == "Custom selection":
+        default_vars = variable_options[:4]
+    else:
+        default_vars = presets[preset][:6]
 
     with col2:
         variables = st.multiselect(
             "Variables to plot",
             options=variable_options,
             default=default_vars,
-            help="Select 2-9 variables for the grid.",
+            help="2–9 variables work well; more than that and the panels get crowded.",
         )
 
     if len(variables) < 2:
         st.info("Select at least 2 variables.")
         return
 
-    n_cols = st.slider("Columns in grid", min_value=2, max_value=4, value=min(3, len(variables)))
+    n_cols = st.slider(
+        "Columns in grid", min_value=2, max_value=4,
+        value=min(3, len(variables)),
+        help="Fewer columns = wider panels = easier to compare individual sites.",
+    )
 
     info = st.session_state.get("results").dataset_info if st.session_state.get("results") else None
-    units = info.units if info and hasattr(info, "units") else None
+    units = units or (info.units if info and hasattr(info, "units") else None)
     fig = depth_profile_grid(
         df,
         variables=variables,
