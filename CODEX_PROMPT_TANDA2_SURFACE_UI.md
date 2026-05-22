@@ -1,3 +1,43 @@
+# CODEX_PROMPT_TANDA2_SURFACE_UI
+
+**Tipo:** Feature UI — pestaña "Surface (spatial)" en Results (Yoelvis Tanda 2, etapa 2)
+**Archivos:** 1 modificado, 1 nuevo
+**Tiempo estimado:** ~15 min
+**Tests esperados después:** 71 passed (sin cambios, esto es UI puro)
+**Pre-requisito:** `CODEX_PROMPT_TANDA2_SURFACE_BACKEND.md` ya aplicado y commiteado.
+
+---
+
+## 1. Contexto
+
+El backend del análisis espacial de la fracción superficial ya está
+funcionando (commit anterior). El pipeline expone
+`results.surface_analysis` con todo lo necesario para visualizar:
+medias por sitio, clusters, coordenadas.
+
+Esta etapa agrega la **pestaña "Surface (spatial)" en la página
+Results**, al lado de PCA / Correlations / Clustering / Anomalies.
+
+Contenido de la pestaña:
+
+| Componente | Función |
+|---|---|
+| Dropdown 5 / 10 / 20 cm | Permite cambiar el corte de la capa superficial sin re-correr todo el pipeline (solo el módulo de surface, que es rápido) |
+| KPI bar | Profundidad, sitios con datos, muestras totales, número de grupos |
+| Heatmap sitio × variable | Z-score por columna, sitios ordenados por cluster |
+| Scatter geográfico | Lat/Lon de cada sitio, coloreado por cluster (si hay coordenadas) |
+| Tabla de composición | Qué sitios cayeron en qué cluster |
+
+Validado contra ISOVIDA: 7 sitios, 54 muestras a 10cm, 3 grupos. Cambiar
+a 5cm baja a 32 muestras, 7 sitios. El recálculo es instantáneo.
+
+---
+
+## 2. Archivo nuevo: `app/views/_surface_tab.py`
+
+Crear este archivo con el contenido íntegro:
+
+```python
 """Visualizations for the surface-layer spatial analysis.
 
 This module renders the contents of the "Surface (spatial)" tab in the
@@ -89,18 +129,12 @@ def render_surface_tab(results) -> None:
     # pipeline result. The surface module is cheap; the rest of the
     # pipeline output is preserved.
     if float(selected_depth) != float(initial.max_depth):
-        # Replicate the same measurement_cols filter the pipeline applies
-        # (drop user-excluded columns) so the recomputation matches the
-        # initial result's column scope.
-        run_ctx = st.session_state.get("run_context") or {}
-        excluded = run_ctx.get("exclude_cols") or []
-        surface_cols = [c for c in info.measurement_cols if c not in excluded]
         try:
             current = surface_spatial_analysis(
                 raw_df,
                 depth_col=info.depth_col,
                 site_col=info.site_col,
-                measurement_cols=surface_cols,
+                measurement_cols=info.measurement_cols,
                 max_depth_cm=float(selected_depth),
                 coordinate_cols=info.coordinate_cols or None,
             )
@@ -306,3 +340,150 @@ def _render_cluster_table(current) -> None:
         "reflect *current* spatial patterns rather than the full core history."
     )
     st.dataframe(df, use_container_width=True)
+```
+
+---
+
+## 3. Cambios en `app/views/results.py`
+
+Dos cambios localizados.
+
+### 3.1 Agregar el tab a la lista de tabs
+
+**BUSCAR:**
+
+```python
+    # ---- TAB LAYOUT ----
+    tab_pca, tab_corr, tab_cluster, tab_anomaly = st.tabs([
+        "PCA", "Correlations", "Clustering", "Anomalies"
+    ])
+```
+
+**REEMPLAZAR POR:**
+
+```python
+    # ---- TAB LAYOUT ----
+    tab_pca, tab_corr, tab_cluster, tab_anomaly, tab_surface = st.tabs([
+        "PCA", "Correlations", "Clustering", "Anomalies", "Surface (spatial)"
+    ])
+```
+
+### 3.2 Renderizar el contenido del nuevo tab al final del archivo
+
+**BUSCAR** las últimas líneas del archivo (el bloque que cierra el tab de Anomalies):
+
+```python
+            # Anomaly details
+            if results.anomalies.n_anomalies > 0:
+                with st.expander("Anomalous samples"):
+                    import pandas as pd
+                    anomaly_idx = results.anomalies.anomaly_indices
+                    if raw_df is not None and len(anomaly_idx) > 0:
+                        anomaly_rows = raw_df.loc[anomaly_idx]
+                        st.dataframe(anomaly_rows, use_container_width=True)
+```
+
+**REEMPLAZAR POR** (agrega el bloque del nuevo tab justo después):
+
+```python
+            # Anomaly details
+            if results.anomalies.n_anomalies > 0:
+                with st.expander("Anomalous samples"):
+                    import pandas as pd
+                    anomaly_idx = results.anomalies.anomaly_indices
+                    if raw_df is not None and len(anomaly_idx) > 0:
+                        anomaly_rows = raw_df.loc[anomaly_idx]
+                        st.dataframe(anomaly_rows, use_container_width=True)
+
+    # ============================================================
+    # TAB 5: SURFACE (SPATIAL)
+    # ============================================================
+    with tab_surface:
+        from app.views._surface_tab import render_surface_tab
+
+        render_surface_tab(results)
+```
+
+---
+
+## 4. Validación
+
+```bash
+# 1. Sintaxis
+python -c "
+import ast
+for f in ['app/views/results.py', 'app/views/_surface_tab.py']:
+    ast.parse(open(f).read())
+    print(f'OK {f}')
+"
+```
+
+```bash
+# 2. Tests (no deben cambiar)
+pytest tests/ -q
+```
+**Esperado:** `71 passed`.
+
+```bash
+# 3. Smoke visual
+streamlit run app/main.py
+```
+
+**Verificación visual (subir ISOVIDA, ir a Results):**
+
+- ✅ Hay 5 pestañas: PCA, Correlations, Clustering, Anomalies, **Surface (spatial)**.
+- ✅ En "Surface (spatial)":
+  - Dropdown con valores 5.0, 10.0, 20.0 (preselectionado 10.0).
+  - KPI bar muestra: 10 cm / 7 sitios / 54 muestras / 3 grupos.
+  - Heatmap rojo-azul (Z-score) con 7 filas (sitios) y unas 30 columnas (variables). Las filas están ordenadas por cluster: Junco Sur, Laguna Guanaroca y Obourke aparecen juntos arriba; después Delfinario, Río Damují y Río Salado; y al final Arrollo Inglés solo.
+  - Mapa scatter con 7 puntos etiquetados con sus nombres de sitio, coloreados por cluster.
+  - Tabla "Cluster composition" con los 3 grupos y sus sitios.
+- ✅ Cambiar el dropdown a **5 cm**: la página se actualiza rápido. La KPI bar dice 5 cm / 7 sitios / 32 muestras / 3 grupos. El heatmap y la tabla se redibujan.
+- ✅ Cambiar el dropdown a **20 cm**: 20 cm / 7 sitios / 94 muestras / 3 grupos.
+
+---
+
+## 5. Si algo falla
+
+- Si la pestaña aparece pero está vacía con "Surface analysis was not
+  executed" → el dataset cargado no tiene site_col o depth_col. Revisar
+  Audit Overview para ver qué se detectó. Para ISOVIDA ambos están
+  presentes.
+- Si crashea con `AttributeError: 'AEDAResults' object has no attribute
+  'surface_analysis'` → el commit del backend (Tanda 2 etapa 1) no se
+  aplicó. Re-aplicar `CODEX_PROMPT_TANDA2_SURFACE_BACKEND.md` primero.
+- Si el heatmap se ve "rojo y nada más" o "blanco" → es porque alguna
+  variable tiene varianza cero entre sitios (todas las filas iguales).
+  El módulo ya filtra estas columnas (`stds > 0`), pero si todas las
+  variables son planas la lógica devuelve `st.info("No variables show
+  variance across sites.")`. Eso es esperado.
+- Si el mapa no aparece → el dataset no tiene coordenadas detectadas
+  (verificar `dataset_info.coordinate_cols` en Audit).
+- No tocar nada bajo `aeda/`, `tests/`. Esta etapa es solo UI:
+  `app/views/results.py` + nuevo `app/views/_surface_tab.py`.
+
+---
+
+## 6. Mensaje de commit sugerido
+
+```
+feat(ui): Surface (spatial) tab in Results page (Yoelvis Tanda 2 — UI)
+
+Adds the user-facing layer for the surface-spatial analysis introduced
+in the previous commit. New tab in the Results page:
+
+- Depth selector (5 / 10 / 20 cm) that recomputes only the surface
+  module — the rest of the pipeline output stays cached.
+- KPI bar with depth, site count, sample count, cluster count.
+- Z-score heatmap (site × variable), rows ordered by cluster so
+  members of the same group are adjacent.
+- Geographic scatter (lat/lon) with sites colored by cluster, when
+  coordinates are available.
+- Cluster composition table.
+
+Implementation moved to a self-contained module
+``app/views/_surface_tab.py`` to keep ``app/views/results.py`` short.
+The tab is the 5th alongside PCA / Correlations / Clustering / Anomalies.
+
+UI only; engine and tests untouched. 71 tests still pass.
+```

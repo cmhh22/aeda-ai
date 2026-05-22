@@ -24,7 +24,7 @@ DEFAULT_LAYOUT = dict(
     template="simple_white",
     font=dict(family="Arial, sans-serif", size=13, color="#2E4057"),
     title=dict(x=0.5, xanchor="center", font=dict(size=16)),
-    margin=dict(l=60, r=40, t=70, b=60),
+    margin=dict(l=60, r=160, t=70, b=60),
     plot_bgcolor="white",
     paper_bgcolor="white",
     hoverlabel=dict(
@@ -36,6 +36,7 @@ DEFAULT_LAYOUT = dict(
         bgcolor="rgba(255,255,255,0.9)",
         bordercolor="#CCCCCC",
         borderwidth=1,
+        font=dict(size=11),
     ),
 )
 

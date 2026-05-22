@@ -29,6 +29,7 @@ def render():
     # ---- Executive summary ----
     st.markdown(f"""
     Your dataset contains **{profile.n_samples} samples** and **{profile.n_features} variables**.
+        Your dataset contains **{profile.n_samples} samples** and **{profile.n_features} columns**.
     After preprocessing and dimensionality reduction, the system will work with approximately
     **{profile.effective_dimensionality} dimensions**. The following analysis was tailored to your data's
     statistical properties and suspected geochemical composition.
@@ -40,7 +41,7 @@ def render():
 
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Samples", profile.n_samples)
-    col2.metric("Variables", profile.n_features)
+        col2.metric("Columns", profile.n_features)
     col3.metric("Effective dimensions", profile.effective_dimensionality)
     col4.metric("Samples/features ratio", f"{profile.ratio_samples_features:.1f}")
 
@@ -48,7 +49,7 @@ def render():
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Skewed variables", f"{profile.pct_skewed:.0f}%")
     col2.metric("Missing data", f"{profile.pct_missing:.1f}%")
-    col3.metric("Correlated pairs (|r|>0.7)", profile.high_correlation_pairs)
+        col3.metric("Correlated pairs (|r|>0.6)", profile.high_correlation_pairs)
     col4.metric("Outlier samples (IQR)", f"{profile.pct_outliers_iqr:.0f}%")
 
     # ---- Geochemistry detected ----
@@ -95,6 +96,7 @@ def render():
         ("preprocessing", "Preprocessing"),
         ("dimensionality", "Dimensionality reduction"),
         ("clustering", "Clustering"),
+            ("spatial", "Spatial analysis"),
         ("anomaly", "Anomaly detection"),
         ("correlation", "Correlations"),
         ("feature_analysis", "Feature analysis"),
@@ -123,7 +125,9 @@ def render():
                         st.caption(f"  · {ev}")
 
                 if rec.params:
-                    st.code(str(rec.params), language=None)
+                        from app.components.params import render_params
+
+                        render_params(rec.params)
 
                 st.divider()
 

@@ -30,8 +30,15 @@ class DatasetInfo:
     file_format: str = ""
 
 
-# Common patterns in LEA environmental datasets
-KNOWN_COORDINATE_PATTERNS = ["latitud", "longitud", "lat", "lon", "x", "y"]
+# Common patterns in LEA environmental datasets.
+# X/Y are intentionally excluded from this list because they are too short
+# to match by substring (the substring "y" matches the chemical element Y
+# = yttrium). UTM-style 'X' and 'Y' coordinates are handled below by a
+# separate contextual rule that requires BOTH columns to be present AND
+# no explicit geographic coordinates (lat/lon) to be detected first.
+KNOWN_COORDINATE_PATTERNS = [
+    "latitud", "longitud", "latitude", "longitude", "lat", "lon", "lng"
+]
 KNOWN_DEPTH_PATTERNS = ["profundidad", "depth", "prof"]
 KNOWN_SITE_PATTERNS = ["sitio", "site", "estacion", "station", "site_name"]
 KNOWN_UNCERTAINTY_PREFIX = ["u_", "inc_", "err_", "uncertainty_"]
@@ -58,6 +65,19 @@ def _detect_special_columns(df: pd.DataFrame) -> dict:
             result["site_col"] = orig
         elif any(low.startswith(p) for p in KNOWN_UNCERTAINTY_PREFIX):
             result["uncertainty_cols"].append(orig)
+    # Contextual UTM detection: only when no geographic coordinates (lat/lon)
+    # were detected, AND both 'X' and 'Y' columns are present, treat them
+    # as UTM coordinates. The 'both required' rule prevents the chemical
+    # element Y (yttrium) from being mis-detected as a coordinate.
+    if not result["coordinate_cols"]:
+        lower_values = set(cols_lower.values())
+        if "x" in lower_values and "y" in lower_values:
+            # find original column names for x and y and append them
+            for orig, low in cols_lower.items():
+                if low == "x":
+                    result["coordinate_cols"].append(orig)
+                elif low == "y":
+                    result["coordinate_cols"].append(orig)
 
     non_special = set(result["coordinate_cols"] + result["uncertainty_cols"])
     if result["depth_col"]:

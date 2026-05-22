@@ -118,17 +118,22 @@ def _render_single(df, variable_options, depth_col, site_col):
     else:
         filtered_df = df
 
+    # Include units from the dataset info when available
+    info = st.session_state.get("results").dataset_info if st.session_state.get("results") else None
+    units = info.units if info and hasattr(info, "units") else None
     fig = depth_profile(
         filtered_df,
         variable=variable,
         depth_col=depth_col,
         site_col=site_col,
         core_col=core_col,
+        units=units,
     )
     st.plotly_chart(fig, use_container_width=True)
 
     # Quick stats
     with st.expander("Variable statistics"):
+        st.caption("Per-site descriptive statistics for the selected column.")
         stats = filtered_df.groupby(site_col)[variable].describe() if site_col else filtered_df[variable].describe()
         st.dataframe(stats, use_container_width=True)
 
@@ -175,11 +180,14 @@ def _render_grid(df, variable_options, depth_col, site_col):
 
     n_cols = st.slider("Columns in grid", min_value=2, max_value=4, value=min(3, len(variables)))
 
+    info = st.session_state.get("results").dataset_info if st.session_state.get("results") else None
+    units = info.units if info and hasattr(info, "units") else None
     fig = depth_profile_grid(
         df,
         variables=variables,
         depth_col=depth_col,
         site_col=site_col,
         n_cols=n_cols,
+        units=units,
     )
     st.plotly_chart(fig, use_container_width=True)

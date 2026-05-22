@@ -70,7 +70,7 @@ def _render_run_summary(results):
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("File", filename)
     col2.metric("Samples", raw_df.shape[0] if raw_df is not None else 0)
-    col3.metric("Variables", raw_df.shape[1] if raw_df is not None else 0)
+    col3.metric("Columns", raw_df.shape[1] if raw_df is not None else 0)
 
     n_measured = len(info.measurement_cols) if info else 0
     col4.metric("Measurement variables", n_measured)
@@ -156,6 +156,7 @@ def _render_decisions(results):
         "preprocessing": "Data preparation",
         "dimensionality": "Variable summarization",
         "clustering": "Sample grouping",
+        "spatial": "Spatial analysis",
         "anomaly": "Anomaly detection",
         "correlation": "Variable relationships",
         "feature_analysis": "Most informative variables",
@@ -188,7 +189,9 @@ def _render_decisions(results):
 
             if primary.params:
                 st.caption("Parameters chosen by the auto-selector:")
-                st.json(primary.params, expanded=False)
+                from app.components.params import render_params
+
+                render_params(primary.params)
 
             if n_alternatives:
                 st.caption(f"{n_alternatives} alternative method(s) were considered:")

@@ -37,6 +37,7 @@ def depth_profile(
     title: Optional[str] = None,
     width: int = 900,
     height: int = 600,
+    units: Optional[dict] = None,
 ) -> go.Figure:
     """
     Plot concentration of a single variable against depth, one line per site.
@@ -121,7 +122,11 @@ def depth_profile(
             marker=dict(size=6),
         ))
 
-    fig.update_xaxes(title=variable, gridcolor="#F0F0F0")
+    unit = None
+    if units and isinstance(units, dict):
+        unit = units.get(variable)
+    x_title = f"{variable} ({unit})" if unit else variable
+    fig.update_xaxes(title=x_title, gridcolor="#F0F0F0")
     fig.update_yaxes(
         title=f"{depth_col} (cm)",
         autorange="reversed",  # Surface at top — geological convention
@@ -148,6 +153,7 @@ def depth_profile_grid(
     title: Optional[str] = None,
     width: int = 1100,
     height: Optional[int] = None,
+    units: Optional[dict] = None,
 ) -> go.Figure:
     """
     Grid of depth profiles, one panel per variable.
@@ -239,7 +245,13 @@ def depth_profile_grid(
         # The variable name is already shown as the subplot title (top of each
         # cell). Showing it again on the X-axis title would duplicate the
         # label visually. We keep the X grid styled but omit the title.
-        fig.update_xaxes(row=row, col=col, gridcolor="#F0F0F0")
+        # Build axis titles including units when available
+        x_title = None
+        unit = units.get(variable) if (units and isinstance(units, dict)) else None
+        if unit:
+            x_title = f"{variable} ({unit})"
+
+        fig.update_xaxes(row=row, col=col, title_text=x_title, gridcolor="#F0F0F0")
         fig.update_yaxes(
             title_text=f"{depth_col} (cm)" if col == 1 else None,
             autorange="reversed",
@@ -263,6 +275,7 @@ def depth_profile_with_thresholds(
     pel: Optional[float] = None,
     use_noaa_defaults: bool = True,
     log_scale: bool = True,
+    units: Optional[dict] = None,
 ) -> go.Figure:
     """Depth profile with TEL/PEL reference lines."""
     from aeda.interpretation.thresholds import get_thresholds
@@ -321,9 +334,14 @@ def depth_profile_with_thresholds(
             annotation_position="top",
         )
 
+    unit = None
+    if units and isinstance(units, dict):
+        unit = units.get(metal)
+    xaxis_title = f"{metal} ({unit})" if unit else f"{metal} (mg/kg)"
+
     fig.update_layout(
         title=f"{metal} — depth profile with TEL/PEL",
-        xaxis_title=f"{metal} (mg/kg)",
+        xaxis_title=xaxis_title,
         yaxis_title=depth_col,
         xaxis=dict(type="log" if log_scale else "linear"),
         yaxis=dict(autorange="reversed"),

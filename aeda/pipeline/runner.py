@@ -308,6 +308,25 @@ class AEDAPipeline:
             if effective_contamination is None:
                 effective_contamination = 0.05
 
+        # Resolve clustering kwargs: if the auto-selector (brain) provided a
+        # primary recommendation for clustering, use its params as defaults
+        # and allow explicit user-provided `clustering_kwargs` to override
+        # those defaults. This ensures the brain's suggested K or method is
+        # respected when the user has not supplied explicit overrides.
+        effective_clustering_kwargs = dict(self.clustering_kwargs or {})
+        for rec in plan.recommendations:
+            if rec.category == "clustering" and rec.priority == 1:
+                # Merge defaults from the plan: only set keys that the user
+                # has not provided so that user overrides take precedence.
+                for k, v in rec.params.items():
+                    if k not in effective_clustering_kwargs:
+                        effective_clustering_kwargs[k] = v
+                break
+        # Pull out any 'method' key from the resolved kwargs so we don't pass
+        # it twice to the engine call. The explicit method chosen here is the
+        # one that will be used for clustering and displayed in the UI.
+        method_to_use = effective_clustering_kwargs.pop("method", self.clustering_method)
+
         # Persist the resolved configuration so the UI (Advanced page) can
         # display what was actually applied, not what the user typed.
         results.effective_settings = {
@@ -316,7 +335,7 @@ class AEDAPipeline:
             "apply_clr": effective_clr,
             "contamination": effective_contamination,
             "dim_method": self.dim_method,
-            "clustering_method": self.clustering_method,
+            "clustering_method": method_to_use,
             "anomaly_method": self.anomaly_method,
             "correlation_method": self.correlation_method,
             "run_interpretation": self.run_interpretation,
@@ -324,7 +343,7 @@ class AEDAPipeline:
             "baseline_strategy": self.baseline_strategy,
             "custom_baseline": self.custom_baseline,
             "dim_kwargs": dict(self.dim_kwargs),
-            "clustering_kwargs": dict(self.clustering_kwargs),
+            "clustering_kwargs": dict(effective_clustering_kwargs),
             "anomaly_kwargs": dict(self.anomaly_kwargs),
         }
 
@@ -351,7 +370,9 @@ class AEDAPipeline:
         # 6. CLUSTERING
         try:
             results.clustering = cluster(
-                processed, method=self.clustering_method, **self.clustering_kwargs
+                processed,
+                method=method_to_use,
+                **effective_clustering_kwargs,
             )
         except Exception as e:
             logger.warning(f"Clustering failed: {type(e).__name__}: {e}")
@@ -408,12 +429,21 @@ class AEDAPipeline:
         # The analysis filters to the surface layer (default 10 cm), averages
         # by site, and clusters sites. See aeda/engine/spatial_surface.py.
         if info.site_col is not None and info.depth_col is not None:
+            # Respect the user's exclude_cols: info.measurement_cols is the
+            # parser's view of "what looks like a measurement", but the user
+            # may have flagged columns like "No" (row index) as metadata in
+            # the Upload page. We honor that here so the surface heatmap and
+            # site clustering only use real chemistry.
+            surface_measurement_cols = [
+                c for c in info.measurement_cols
+                if not exclude_cols or c not in exclude_cols
+            ]
             try:
                 results.surface_analysis = surface_spatial_analysis(
                     df,
                     depth_col=info.depth_col,
                     site_col=info.site_col,
-                    measurement_cols=info.measurement_cols,
+                    measurement_cols=surface_measurement_cols,
                     max_depth_cm=self.surface_depth_cm,
                     coordinate_cols=info.coordinate_cols or None,
                 )
