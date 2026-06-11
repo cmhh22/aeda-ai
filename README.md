@@ -41,3 +41,19 @@ print(results.summary())
 ```bash
 pip install -e .
 ```
+
+## Reproducibilidad
+
+El entorno exacto de ejecución puede recrearse con:
+
+```bash
+# Opción conda
+conda env create -f environment.yml
+
+# Opción pip
+pip install -r requirements-lock.txt
+```
+
+Todos los componentes estocásticos (K-Means, Isolation Forest, t-SNE, UMAP,
+Random Forest) usan semilla fija, por lo que ejecuciones repetidas sobre el
+mismo conjunto de datos producen resultados idénticos.

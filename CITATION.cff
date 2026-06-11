@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "AEDA-AI: framework para análisis exploratorio automatizado de datos ambientales mediante inteligencia artificial"
+authors:
+  - family-names: "Hernández Hernández"
+    given-names: "Carlos Manuel"
+abstract: >
+  AEDA-AI is an automated exploratory data analysis framework for
+  environmental data. It integrates a rule-based expert system for
+  automatic method selection, unsupervised machine learning techniques,
+  and an environmental interpretation layer (Enrichment Factor, NOAA
+  TEL/PEL thresholds, Birch classification, LOD imputation). Validated
+  on the ISOVIDA mangrove sediments dataset (Cienfuegos Bay, Cuba).
+keywords:
+  - exploratory data analysis
+  - expert system
+  - environmental data
+  - sediment contamination
+  - machine learning
+license: MIT
+repository-code: "https://github.com/cmhh22/aeda-ai"
+version: "0.1.0"
+date-released: "2026-06-11"

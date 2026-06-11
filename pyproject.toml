@@ -8,6 +8,7 @@ version = "0.1.0"
 description = "Automated Environmental Exploratory Data Analysis framework for LEA-CEAC"
 readme = "README.md"
 requires-python = ">=3.10"
+license = { text = "MIT" }
 dependencies = [
     "pandas>=2.0",
     "numpy>=1.24",
