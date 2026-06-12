@@ -1,0 +1,251 @@
+{
+  "$schema_note": "AEDA-AI expert system rules catalog. Declarative documentation of the rules implemented in aeda/engine/auto_selector.py. The execution engine remains Python; this file serves audit and documentation purposes. Conditions are expressed over DataProfile fields.",
+  "version": "1.0.0",
+  "date": "2026-06",
+  "validated_by_legend": {
+    "scientific_tutor_2026": "Rule reviewed and confirmed by M.Sc. Yoelvis Bolanos-Alvarez (LEA-CEAC), 2026",
+    "design": "Technical design decision grounded in the cited literature"
+  },
+  "rules": [
+    {
+      "id": "PRE-001",
+      "category": "preprocessing",
+      "condition": "has_mixed_units == true",
+      "action": { "method": "scale", "params": { "scaler": "standard" } },
+      "confidence": "high",
+      "rationale": "Variables in % and mg/kg cannot be mixed without scaling; magnitude differences distort distance-based methods (Hastie et al., 2009).",
+      "priority": 1,
+      "validated_by": "scientific_tutor_2026"
+    },
+    {
+      "id": "PRE-002",
+      "category": "preprocessing",
+      "condition": "compositional_groups_detected == true",
+      "action": { "method": "clr_transform", "params": { "columns": "<compositional_cols>", "user_action_required": true } },
+      "confidence": "high",
+      "rationale": "Closure constraint produces spurious correlations (Aitchison, 1982). CLR recommended but applied only on explicit user activation (apply_clr=True).",
+      "priority": 1,
+      "validated_by": "scientific_tutor_2026"
+    },
+    {
+      "id": "PRE-003",
+      "category": "preprocessing",
+      "condition": "lod_censoring_pct > 0 AND shapiro_normal == false",
+      "action": { "method": "impute_lod", "params": { "strategy": "LDM/sqrt(2)" } },
+      "confidence": "high",
+      "rationale": "Succop et al. (2004): for non-Normal variables, censored values are imputed as LOD divided by the square root of two.",
+      "priority": 1,
+      "validated_by": "scientific_tutor_2026"
+    },
+    {
+      "id": "PRE-004",
+      "category": "preprocessing",
+      "condition": "lod_censoring_pct > 0 AND shapiro_normal == true",
+      "action": { "method": "impute_lod", "params": { "strategy": "LDM/2" } },
+      "confidence": "high",
+      "rationale": "Succop et al. (2004): for Normal variables, censored values are imputed as LOD divided by two.",
+      "priority": 1,
+      "validated_by": "scientific_tutor_2026"
+    },
+    {
+      "id": "PRE-005",
+      "category": "preprocessing",
+      "condition": "missing_pct > 0 AND missing_pattern == 'random'",
+      "action": { "method": "impute", "params": { "strategy": "median" } },
+      "confidence": "medium",
+      "rationale": "Median imputation is robust to skewed distributions typical of trace-element geochemistry (Reimann & de Caritat, 2017).",
+      "priority": 1,
+      "validated_by": "design"
+    },
+    {
+      "id": "PRE-006",
+      "category": "preprocessing",
+      "condition": "missing_pattern == 'structural'",
+      "action": { "method": "report_only", "params": { "recommendation": "subset_analysis" } },
+      "confidence": "high",
+      "rationale": "Structural missingness (variables measured only in subsets by design) must not be imputed (Helsel, 2005); subset analysis is advised instead.",
+      "priority": 1,
+      "validated_by": "design"
+    },
+    {
+      "id": "PRE-007",
+      "category": "preprocessing",
+      "condition": "outlier_sample_pct > 0.10",
+      "action": { "method": "scale", "params": { "scaler": "robust" } },
+      "confidence": "medium",
+      "rationale": "Median/IQR-based scaling is less sensitive to extreme values than z-score standardization (Pedregosa et al., 2011).",
+      "priority": 2,
+      "validated_by": "design"
+    },
+    {
+      "id": "DIM-001",
+      "category": "dimensionality",
+      "condition": "has_multicollinearity == true OR n_features > 10",
+      "action": { "method": "pca", "params": { "variance_threshold": 0.85 } },
+      "confidence": "high",
+      "rationale": "PCA is the reference linear technique for multicollinear geochemical matrices; 85% retained variance balances parsimony and information (Hastie et al., 2009).",
+      "priority": 1,
+      "validated_by": "design"
+    },
+    {
+      "id": "DIM-002",
+      "category": "dimensionality",
+      "condition": "nonlinear_structure_suspected == true",
+      "action": { "method": "umap", "params": { "n_neighbors": 15, "random_state": 42 } },
+      "confidence": "medium",
+      "rationale": "UMAP preserves global structure better than t-SNE at lower computational cost (McInnes et al., 2018).",
+      "priority": 2,
+      "validated_by": "design"
+    },
+    {
+      "id": "DIM-003",
+      "category": "dimensionality",
+      "condition": "n_samples <= 3000",
+      "action": { "method": "tsne", "params": { "perplexity": 30, "random_state": 42 } },
+      "confidence": "low",
+      "rationale": "t-SNE has quadratic complexity in sample count; offered as an alternative only within its practical range (van der Maaten & Hinton, 2008).",
+      "priority": 3,
+      "validated_by": "design"
+    },
+    {
+      "id": "CLU-001",
+      "category": "clustering",
+      "condition": "outlier_sample_pct > 0.15",
+      "action": { "method": "dbscan", "params": { "eps": "auto", "min_samples": "auto" } },
+      "confidence": "high",
+      "rationale": "With a high outlier proportion, forced-partition methods displace centroids; DBSCAN labels extremes as noise and preserves dense-region structure (Ester et al., 1996).",
+      "priority": 1,
+      "validated_by": "design"
+    },
+    {
+      "id": "CLU-002",
+      "category": "clustering",
+      "condition": "n_sites >= 2 AND outlier_sample_pct <= 0.15",
+      "action": { "method": "kmeans", "params": { "n_clusters": "<n_sites>" } },
+      "confidence": "high",
+      "rationale": "Clustering with K equal to the number of sampling sites tests the correspondence between chemistry and geography of the sampling design.",
+      "priority": 1,
+      "validated_by": "scientific_tutor_2026"
+    },
+    {
+      "id": "CLU-003",
+      "category": "clustering",
+      "condition": "n_sites < 2 AND n_samples <= 500",
+      "action": { "method": "hierarchical", "params": { "linkage": "ward" } },
+      "confidence": "medium",
+      "rationale": "Ward dendrograms add exploratory value and do not require fixing K in advance (Hastie et al., 2009).",
+      "priority": 1,
+      "validated_by": "design"
+    },
+    {
+      "id": "CLU-004",
+      "category": "clustering",
+      "condition": "always",
+      "action": { "method": "kmeans", "params": { "n_clusters": null, "k_range": [2, 10], "selection": "silhouette" } },
+      "confidence": "medium",
+      "rationale": "Automatic K via silhouette maximization (Rousseeuw, 1987) as a general-purpose alternative.",
+      "priority": 2,
+      "validated_by": "design"
+    },
+    {
+      "id": "SPA-001",
+      "category": "spatial",
+      "condition": "n_sites >= 3 AND has_depth == true",
+      "action": { "method": "surface_spatial_analysis", "params": { "surface_depth_cm": 10 } },
+      "confidence": "high",
+      "rationale": "Cross-site comparison must be restricted to the surface fraction (0-10 cm; some authors use 0-5 or 0-20 cm) to avoid mixing historical periods. Per scientific tutor guidance.",
+      "priority": 1,
+      "validated_by": "scientific_tutor_2026"
+    },
+    {
+      "id": "ANO-001",
+      "category": "anomalies",
+      "condition": "always",
+      "action": { "method": "isolation_forest", "params": { "contamination": "<estimated_from_zscore>", "random_state": 42 } },
+      "confidence": "high",
+      "rationale": "Isolation Forest scales linearly and is robust to the skewed, multimodal distributions of trace-element data (Liu et al., 2008). Contamination estimated from univariate z-score outliers.",
+      "priority": 1,
+      "validated_by": "design"
+    },
+    {
+      "id": "ANO-002",
+      "category": "anomalies",
+      "condition": "heterogeneous_cluster_densities == true",
+      "action": { "method": "lof", "params": { "n_neighbors": 20 } },
+      "confidence": "medium",
+      "rationale": "LOF detects samples anomalous relative to their local neighborhood, complementary to Isolation Forest's global view (Breunig et al., 2000).",
+      "priority": 2,
+      "validated_by": "design"
+    },
+    {
+      "id": "COR-001",
+      "category": "correlation",
+      "condition": "always",
+      "action": { "method": "compare", "params": { "methods": ["pearson", "spearman"], "strong_threshold": 0.6 } },
+      "confidence": "high",
+      "rationale": "Comparing Pearson vs Spearman flags monotonic non-linear associations. Threshold 0.6 consistent with compositional environmental data practice (Filzmoser et al., 2009) and confirmed by the scientific tutor as reasonable strength subject to significance testing.",
+      "priority": 1,
+      "validated_by": "scientific_tutor_2026"
+    },
+    {
+      "id": "COR-002",
+      "category": "correlation",
+      "condition": "has_heavy_metals == true AND has_granulometry == true",
+      "action": { "method": "cross_correlation", "params": { "subset_a": "<heavy_metals>", "subset_b": "<granulometry>" } },
+      "confidence": "high",
+      "rationale": "Metal-grain size correlation assesses whether metal transport is controlled by fine fractions (clay adsorption), informing source identification.",
+      "priority": 1,
+      "validated_by": "scientific_tutor_2026"
+    },
+    {
+      "id": "FEA-001",
+      "category": "feature_analysis",
+      "condition": "clusters_detected == true",
+      "action": { "method": "random_forest_importance", "params": { "random_state": 42 } },
+      "confidence": "medium",
+      "rationale": "Random Forest importance identifies which variables discriminate the detected groups, guiding geochemical interpretation.",
+      "priority": 1,
+      "validated_by": "design"
+    },
+    {
+      "id": "INT-001",
+      "category": "interpretation",
+      "condition": "has_heavy_metals == true AND reference_element_present == true AND has_depth == true",
+      "action": { "method": "enrichment_factor", "params": { "reference_element": "Al", "baseline_strategy": "deepest" } },
+      "confidence": "high",
+      "rationale": "Al as conservative lithogenic reference (Buat-Menard & Chesselet, 1979); deepest section per site approximates pre-anthropogenic baseline when radiometric dating is unavailable (Bolanos-Alvarez et al., 2024). Reference element user-configurable (Fe, Ti, Sc, Li).",
+      "priority": 1,
+      "validated_by": "scientific_tutor_2026"
+    },
+    {
+      "id": "INT-002",
+      "category": "interpretation",
+      "condition": "intersection(heavy_metals_detected, noaa_tel_pel_table) != empty",
+      "action": { "method": "classify_tel_pel", "params": { "table": "NOAA_marine_sediment" } },
+      "confidence": "high",
+      "rationale": "NOAA SQuiRTs (Buchman, 2008) is a Quality Guideline (not Cuban regulation; none exists for sediment metals). Classification limited to metals present in both the dataset and the table.",
+      "priority": 1,
+      "validated_by": "scientific_tutor_2026"
+    },
+    {
+      "id": "INT-003",
+      "category": "interpretation",
+      "condition": "enrichment_factor_computed == true",
+      "action": { "method": "classify_ef_birch", "params": { "bands": 7 } },
+      "confidence": "high",
+      "rationale": "Birch (2003) seven-band severity classification for EF communication and cross-study comparison.",
+      "priority": 1,
+      "validated_by": "scientific_tutor_2026"
+    },
+    {
+      "id": "INT-004",
+      "category": "interpretation",
+      "condition": "element in rudnick_gao_table",
+      "action": { "method": "compare_to_crust", "params": { "reference": "upper_continental_crust" } },
+      "confidence": "medium",
+      "rationale": "Rudnick & Gao (2013) upper continental crust values as auxiliary natural-background reference. Added on scientific tutor recommendation.",
+      "priority": 2,
+      "validated_by": "scientific_tutor_2026"
+    }
+  ]
+}
