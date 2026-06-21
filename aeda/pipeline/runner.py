@@ -249,8 +249,18 @@ class AEDAPipeline:
         # 2. VALIDATION
         results.validation = validate(df, measurement_cols=info.measurement_cols)
 
+        # Structural columns (depth, site, coordinates) detected by the parser
+        # are sampling metadata, not composition variables: exclude them from
+        # the ML feature matrix even if the user did not list them. The depth
+        # and surface analyses use these columns separately.
+        structural_cols = [
+            c for c in ([info.depth_col, info.site_col] + list(info.coordinate_cols or []))
+            if c
+        ]
+        effective_exclude = list(dict.fromkeys((exclude_cols or []) + structural_cols))
+
         # 3. AUTO-SELECTOR
-        numeric_df = select_numeric(df, exclude_cols=exclude_cols)
+        numeric_df = select_numeric(df, exclude_cols=effective_exclude)
         plan = auto_select(
             numeric_df,
             has_coordinates=len(info.coordinate_cols) > 0,
@@ -350,7 +360,7 @@ class AEDAPipeline:
         # 4. PREPROCESSING
         processed, proc_log, scaler = preprocess(
             df,
-            exclude_cols=exclude_cols,
+            exclude_cols=effective_exclude,
             impute_strategy=effective_impute,
             scale_method=effective_scale,
             apply_clr=effective_clr,

@@ -104,6 +104,8 @@ def render():
         # Row numbers / sample IDs that may be numeric
         "No", "N", "ID", "Id", "Sample_ID", "SampleID", "Sample_No", "Sample",
         "Order", "Row", "Index",
+        # Sampling depth (structural: used for depth/surface analysis, not as a variable)
+        "Profundidad", "Depth", "depth", "Prof", "Profundidad_cm", "Depth_cm",
     }
     numeric_metadata = [c for c in all_cols if c in METADATA_COLUMN_NAMES]
 
