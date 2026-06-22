@@ -27,6 +27,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
+from app.i18n import t
 from aeda.engine.spatial_surface import (
     COMMON_SURFACE_DEPTHS_CM,
     DEFAULT_SURFACE_DEPTH_CM,
@@ -43,20 +44,24 @@ def render_surface_tab(results) -> None:
         Pipeline results with ``surface_analysis`` populated (or None if
         the pipeline could not run it for this dataset).
     """
-    st.subheader("Surface-layer inter-site analysis")
+    st.subheader(t("Surface-layer inter-site analysis"))
     st.caption(
-        "Compares sites using **only their surface sediment** (the most "
-        "recent deposition). This avoids mixing different historical "
-        "periods across sites, which is the standard approach for "
-        "present-day spatial contamination studies."
+        t(
+            "Compares sites using **only their surface sediment** (the most "
+            "recent deposition). This avoids mixing different historical "
+            "periods across sites, which is the standard approach for "
+            "present-day spatial contamination studies."
+        )
     )
 
     initial = results.surface_analysis
     if initial is None:
         st.info(
-            "Surface analysis was not executed. It requires the dataset to "
-            "have both a **site column** and a **depth column**. "
-            "Check the Analysis Plan or Audit page to see which were detected."
+            t(
+                "Surface analysis was not executed. It requires the dataset to "
+                "have both a **site column** and a **depth column**. "
+                "Check the Analysis Plan or Audit page to see which were detected."
+            )
         )
         return
 
@@ -73,10 +78,10 @@ def render_surface_tab(results) -> None:
     col1, col2 = st.columns([1, 3])
     with col1:
         selected_depth = st.selectbox(
-            "Surface depth (cm)",
+            t("Surface depth (cm)"),
             options=presets,
             index=default_index,
-            help=(
+            help=t(
                 "Defines the cutoff between 'surface' (recent) and 'deep' "
                 "(older) sediment. Yoelvis (LEA-CEAC) recommends 10 cm as "
                 "the default; 5 cm or 20 cm are common alternatives in "
@@ -106,8 +111,8 @@ def render_surface_tab(results) -> None:
             )
         except Exception as e:
             st.error(
-                f"Could not recompute the surface analysis at {selected_depth} cm: "
-                f"{type(e).__name__}: {e}"
+                t("Could not recompute the surface analysis at {depth} cm.").format(depth=selected_depth)
+                + f" {type(e).__name__}: {e}"
             )
             return
     else:
@@ -115,8 +120,7 @@ def render_surface_tab(results) -> None:
 
     if current.n_samples_in_surface == 0:
         st.warning(
-            f"No samples fall within the top {selected_depth} cm. "
-            "Try a deeper threshold."
+            t("No samples fall within the top {depth} cm. Try a deeper threshold.").format(depth=selected_depth)
         )
         return
 
@@ -128,13 +132,13 @@ def render_surface_tab(results) -> None:
     )
 
     kpi_cols = st.columns(4)
-    kpi_cols[0].metric("Depth threshold", f"{selected_depth:g} cm")
-    kpi_cols[1].metric("Sites with surface data", current.n_sites_with_data)
-    kpi_cols[2].metric("Surface samples", current.n_samples_in_surface)
+    kpi_cols[0].metric(t("Depth threshold"), f"{selected_depth:g} cm")
+    kpi_cols[1].metric(t("Sites with surface data"), current.n_sites_with_data)
+    kpi_cols[2].metric(t("Surface samples"), current.n_samples_in_surface)
     kpi_cols[3].metric(
-        "Site groups",
+        t("Site groups"),
         n_clusters if n_clusters else "—",
-        help=(
+        help=t(
             "Number of clusters of sites with similar surface chemistry. "
             "Computed by hierarchical Ward clustering."
         ),
@@ -166,23 +170,25 @@ def _render_heatmap(current) -> None:
 
     Sites are reordered so cluster members appear next to each other.
     """
-    st.markdown("**Site × variable heatmap (Z-score per variable)**")
+    st.markdown(f"**{t('Site × variable heatmap (Z-score per variable)')}**")
     st.caption(
-        "Each variable is standardized across sites. **Red** = this site is high "
-        "in that variable relative to other sites; **blue** = low. Sites are "
-        "ordered by cluster, so members of the same group appear together."
+        t(
+            "Each variable is standardized across sites. **Red** = this site is high "
+            "in that variable relative to other sites; **blue** = low. Sites are "
+            "ordered by cluster, so members of the same group appear together."
+        )
     )
 
     site_means = current.site_means
     if site_means.empty:
-        st.info("No site means to display.")
+        st.info(t("No site means to display."))
         return
 
     # Filter to columns with any variance — flat columns are uninformative
     stds = site_means.std(axis=0, numeric_only=True)
     informative_cols = stds[stds > 0].index.tolist()
     if not informative_cols:
-        st.info("No variables show variance across sites.")
+        st.info(t("No variables show variance across sites."))
         return
     data = site_means[informative_cols]
 
@@ -200,7 +206,7 @@ def _render_heatmap(current) -> None:
 
     fig = px.imshow(
         z,
-        labels=dict(x="Variable", y="Site", color="Z-score"),
+        labels=dict(x=t("Variable"), y=t("Site"), color=t("Z-score")),
         color_continuous_scale="RdBu_r",
         zmin=-2.5,
         zmax=2.5,
@@ -235,12 +241,14 @@ def _render_geographic_scatter(current) -> None:
         coords.columns[1] if len(coords.columns) > 1 else coords.columns[0],
     )
 
-    st.markdown("**Geographic distribution of sites**")
+    st.markdown(f"**{t('Geographic distribution of sites')}**")
     st.caption(
-        "Each point is a site, positioned by its average coordinates. "
-        "Color encodes the cluster from the surface-chemistry analysis: "
-        "geographically close sites with the same color have similar "
-        "surface chemistry."
+        t(
+            "Each point is a site, positioned by its average coordinates. "
+            "Color encodes the cluster from the surface-chemistry analysis: "
+            "geographically close sites with the same color have similar "
+            "surface chemistry."
+        )
     )
 
     df = coords.copy()
@@ -262,7 +270,7 @@ def _render_geographic_scatter(current) -> None:
         y=lat_col,
         text="site",
         color=cluster_col,
-        labels={lon_col: "Longitude", lat_col: "Latitude"},
+        labels={lon_col: t("Longitude"), lat_col: t("Latitude")},
         color_discrete_sequence=px.colors.qualitative.Safe,
     )
     fig.update_traces(
@@ -284,8 +292,7 @@ def _render_cluster_table(current) -> None:
         or current.site_clustering.get("labels") is None
     ):
         st.caption(
-            f"Clustering was skipped (only {current.n_sites_with_data} site(s)). "
-            "It needs at least 3 sites with surface samples."
+            t("Clustering was skipped (only {n} site(s)). It needs at least 3 sites with surface samples.").format(n=current.n_sites_with_data)
         )
         return
 
@@ -293,16 +300,18 @@ def _render_cluster_table(current) -> None:
     rows = []
     for cluster_id, sites in labels.groupby(labels):
         rows.append({
-            "Cluster": int(cluster_id),
-            "Sites": ", ".join(sites.index.tolist()),
-            "Count": len(sites),
+            t("Cluster"): int(cluster_id),
+            t("Sites"): ", ".join(sites.index.tolist()),
+            t("Count"): len(sites),
         })
-    df = pd.DataFrame(rows).set_index("Cluster")
+    df = pd.DataFrame(rows).set_index(t("Cluster"))
 
-    st.markdown("**Cluster composition**")
+    st.markdown(f"**{t('Cluster composition')}**")
     st.caption(
-        "Sites in the same cluster have similar surface chemistry. The "
-        "groupings are computed only over the surface layer, so they "
-        "reflect *current* spatial patterns rather than the full core history."
+        t(
+            "Sites in the same cluster have similar surface chemistry. The "
+            "groupings are computed only over the surface layer, so they "
+            "reflect *current* spatial patterns rather than the full core history."
+        )
     )
     st.dataframe(df, use_container_width=True)

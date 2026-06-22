@@ -5,6 +5,8 @@ human-readable form.
 """
 import streamlit as st
 
+from app.i18n import t
+
 
 def render_params(params: dict, expanded: bool = False) -> None:
     """Render a shallow dict of parameters as a two-column key/value list.
@@ -12,7 +14,7 @@ def render_params(params: dict, expanded: bool = False) -> None:
     Falls back to `st.json` when the object is not a plain dict.
     """
     if not params:
-        st.caption("(no parameters)")
+        st.caption(t("(no parameters)"))
         return
 
     if not isinstance(params, dict):

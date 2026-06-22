@@ -26,6 +26,7 @@ if str(_PROJECT_ROOT) not in sys.path:
 import streamlit as st
 
 from app.theme import apply_theme
+from app.i18n import t, language_selector
 
 # ---------------------------------------------------------------------------
 # Page configuration
@@ -52,6 +53,8 @@ if "filename" not in st.session_state:
 # user to upload the file again.
 if "run_context" not in st.session_state:
     st.session_state.run_context = None
+if "lang" not in st.session_state:
+    st.session_state.lang = "es"
 
 # ---------------------------------------------------------------------------
 # Pages registry — single source of truth for navigation.
@@ -80,19 +83,24 @@ def _render_sidebar() -> str:
         "</div>",
         unsafe_allow_html=True,
     )
-    st.sidebar.caption("Automated EDA for environmental data")
+    st.sidebar.caption(t("Automated EDA for environmental data"))
     st.sidebar.divider()
 
     # Navigation
     page_label = st.sidebar.radio(
-        "Navigation",
+        t("Navigation"),
         options=[label for label, _ in PAGES],
+        format_func=lambda label: t(label),
         label_visibility="collapsed",
     )
 
     # Status block
     st.sidebar.divider()
     _render_status_block()
+
+    # Language selector
+    st.sidebar.divider()
+    language_selector()
 
     return page_label
 
@@ -102,21 +110,21 @@ def _render_status_block() -> None:
     results = st.session_state.results
     if results is None:
         st.sidebar.markdown(
-            '<div class="status-empty">No dataset loaded</div>',
+            f'<div class="status-empty">{t("No dataset loaded")}</div>',
             unsafe_allow_html=True,
         )
         return
 
     filename = st.session_state.filename or "—"
-    st.sidebar.markdown("**Current dataset**")
+    st.sidebar.markdown(f"**{t('Current dataset')}**")
     st.sidebar.caption(f"📄 {filename}")
 
     cols = st.sidebar.columns(2)
-    cols[0].metric("Samples", results.raw_data.shape[0])
-    cols[1].metric("Variables", results.raw_data.shape[1])
+    cols[0].metric(t("Samples"), results.raw_data.shape[0])
+    cols[1].metric(t("Variables"), results.raw_data.shape[1])
 
     if results.clustering is not None:
-        st.sidebar.metric("Clusters", results.clustering.n_clusters)
+        st.sidebar.metric(t("Clusters"), results.clustering.n_clusters)
 
 
 def main() -> None:

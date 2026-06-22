@@ -64,7 +64,9 @@ def test_app_boots_empty():
     assert not at.exception
     # The navigation radio is present in the sidebar.
     assert len(at.sidebar.radio) == 1
-    assert set(PAGES).issubset(set(at.sidebar.radio[0].options))
+    # Six navigation entries are present. Labels may be displayed translated
+    # (format_func), so we assert the count rather than the raw English values.
+    assert len(at.sidebar.radio[0].options) == len(PAGES)
 
 
 @pytest.mark.parametrize("page", PAGES)

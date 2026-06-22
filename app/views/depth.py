@@ -8,25 +8,29 @@ represent temporal trends (deeper = older).
 
 import streamlit as st
 
+from app.i18n import t
+
 
 def render():
     from app.components.page_header import page_header
 
     page_header(
-        title="Depth Profiles",
-        description="Concentration vs. depth — sediment cores read as temporal series.",
+        title=t("Depth Profiles"),
+        description=t("Concentration vs. depth — sediment cores read as temporal series."),
         icon="🌊",
     )
 
     st.caption(
-        "In sediment cores, **deeper = older**. The plots show how concentration "
-        "of each variable changes through time, revealing historical contamination trends "
-        "and geochemical changes."
+        t(
+            "In sediment cores, **deeper = older**. The plots show how concentration "
+            "of each variable changes through time, revealing historical contamination trends "
+            "and geochemical changes."
+        )
     )
 
     results = st.session_state.get("results")
     if results is None:
-        st.info("Run an analysis first from the Upload page.")
+        st.info(t("Run an analysis first from the Upload page."))
         return
 
     raw_df = results.raw_data
@@ -34,7 +38,7 @@ def render():
 
     # Check if depth column exists
     if info is None or info.depth_col is None:
-        st.warning("No depth column detected in this dataset. Depth profiles require a column like 'Profundidad' or 'Depth'.")
+        st.warning(t("No depth column detected in this dataset. Depth profiles require a column like 'Profundidad' or 'Depth'."))
         return
 
     depth_col = info.depth_col
@@ -62,9 +66,12 @@ def render():
     from aeda.viz.profiles import depth_profile, depth_profile_grid
 
     # ---- Mode selection ----
+    # NOTE: option values stay in English (used in logic below); the label
+    # shown to the user is translated via format_func.
     mode = st.radio(
-        "View mode",
+        t("View mode"),
         options=["Single variable", "Multi-variable grid"],
+        format_func=lambda o: t(o),
         horizontal=True,
     )
 
@@ -82,7 +89,7 @@ def _render_single(df, variable_options, depth_col, site_col):
 
     with col1:
         variable = st.selectbox(
-            "Variable",
+            t("Variable"),
             options=variable_options,
             index=variable_options.index("Pb") if "Pb" in variable_options else 0,
         )
@@ -93,9 +100,9 @@ def _render_single(df, variable_options, depth_col, site_col):
         possible_core_cols = [c for c in df.columns if c.lower() in ("core", "perfil", "profile")]
         if possible_core_cols:
             use_core = st.checkbox(
-                f"Separate by core ({possible_core_cols[0]})",
+                t("Separate by core ({core})").format(core=possible_core_cols[0]),
                 value=True,
-                help=(
+                help=t(
                     "When a site has multiple sediment cores (e.g. Core A, "
                     "Core B), this draws each core as a separate line. "
                     "Useful to check reproducibility between cores at the "
@@ -109,10 +116,10 @@ def _render_single(df, variable_options, depth_col, site_col):
     if site_col and site_col in df.columns:
         all_sites = sorted(df[site_col].unique())
         selected_sites = st.multiselect(
-            "Sites to display",
+            t("Sites to display"),
             options=all_sites,
             default=all_sites,
-            help="Deselect sites to simplify the plot.",
+            help=t("Deselect sites to simplify the plot."),
         )
         filtered_df = df[df[site_col].isin(selected_sites)] if selected_sites else df
     else:
@@ -132,8 +139,8 @@ def _render_single(df, variable_options, depth_col, site_col):
     st.plotly_chart(fig, use_container_width=True)
 
     # Quick stats
-    with st.expander("Variable statistics"):
-        st.caption("Per-site descriptive statistics for the selected column.")
+    with st.expander(t("Variable statistics")):
+        st.caption(t("Per-site descriptive statistics for the selected column."))
         stats = filtered_df.groupby(site_col)[variable].describe() if site_col else filtered_df[variable].describe()
         st.dataframe(stats, use_container_width=True)
 
@@ -143,14 +150,18 @@ def _render_grid(df, variable_options, depth_col, site_col, units=None):
     from aeda.viz.profiles import depth_profile_grid
 
     st.caption(
-        "Compare several variables side-by-side. Each panel is **read top-to-bottom: "
-        "0 cm is the most recent sediment, deeper rows are older**. A line that rises "
-        "(toward the surface) means the concentration has increased over time at that "
-        "site; a line that stays flat means the chemistry is stable. "
-        "**Tip:** start with 3–4 variables to keep the figure readable, then add more."
+        t(
+            "Compare several variables side-by-side. Each panel is **read top-to-bottom: "
+            "0 cm is the most recent sediment, deeper rows are older**. A line that rises "
+            "(toward the surface) means the concentration has increased over time at that "
+            "site; a line that stays flat means the chemistry is stable. "
+            "**Tip:** start with 3–4 variables to keep the figure readable, then add more."
+        )
     )
 
-    # Preset groups for convenience
+    # Preset groups for convenience.
+    # NOTE: preset keys stay in English (used in logic below); shown translated
+    # via format_func on the selectbox.
     plan = st.session_state.results.plan if st.session_state.results else None
 
     presets = {}
@@ -171,9 +182,10 @@ def _render_grid(df, variable_options, depth_col, site_col, units=None):
     col1, col2 = st.columns([1, 2])
     with col1:
         preset = st.selectbox(
-            "Preset",
+            t("Preset"),
             options=list(presets.keys()),
-            help=(
+            format_func=lambda o: t(o),
+            help=t(
                 "Pre-built variable groups based on your dataset's geochemistry. "
                 "Pick **Custom** to choose any combination."
             ),
@@ -191,20 +203,20 @@ def _render_grid(df, variable_options, depth_col, site_col, units=None):
 
     with col2:
         variables = st.multiselect(
-            "Variables to plot",
+            t("Variables to plot"),
             options=variable_options,
             default=default_vars,
-            help="2–9 variables work well; more than that and the panels get crowded.",
+            help=t("2–9 variables work well; more than that and the panels get crowded."),
         )
 
     if len(variables) < 2:
-        st.info("Select at least 2 variables.")
+        st.info(t("Select at least 2 variables."))
         return
 
     n_cols = st.slider(
-        "Columns in grid", min_value=2, max_value=4,
+        t("Columns in grid"), min_value=2, max_value=4,
         value=min(3, len(variables)),
-        help="Fewer columns = wider panels = easier to compare individual sites.",
+        help=t("Fewer columns = wider panels = easier to compare individual sites."),
     )
 
     info = st.session_state.get("results").dataset_info if st.session_state.get("results") else None

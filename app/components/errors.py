@@ -24,6 +24,8 @@ from __future__ import annotations
 
 import streamlit as st
 
+from app.i18n import t
+
 
 def show_error(message: str, exc: Exception | None = None) -> None:
     """Show a user-friendly error message.
@@ -35,7 +37,7 @@ def show_error(message: str, exc: Exception | None = None) -> None:
     """
     st.error(message)
     if exc is not None:
-        with st.expander("Technical details (for debugging)"):
+        with st.expander(t("Technical details (for debugging)")):
             st.code(f"{type(exc).__name__}: {exc}", language="text")
             st.exception(exc)
 

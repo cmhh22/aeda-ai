@@ -21,13 +21,15 @@ new results back into `st.session_state.results`.
 import time
 import streamlit as st
 
+from app.i18n import t
+
 
 def render():
     from app.components.page_header import page_header
 
     page_header(
-        title="Advanced Configuration",
-        description=(
+        title=t("Advanced Configuration"),
+        description=t(
             "Re-run the analysis on the currently loaded dataset with custom "
             "parameters. Useful for sensitivity analysis and for the scientific "
             "tutor to validate alternative methodological choices."
@@ -38,9 +40,11 @@ def render():
     ctx = st.session_state.get("run_context")
     if ctx is None or st.session_state.get("results") is None:
         st.info(
-            "Upload a dataset from the Upload page first. "
-            "Once an initial run has been completed, this page will let you "
-            "re-run the same analysis with different settings."
+            t(
+                "Upload a dataset from the Upload page first. "
+                "Once an initial run has been completed, this page will let you "
+                "re-run the same analysis with different settings."
+            )
         )
         return
 
@@ -49,9 +53,9 @@ def render():
 
     # ---- Pre-flight info ----
     col1, col2, col3 = st.columns(3)
-    col1.metric("Dataset", st.session_state.get("filename", "—"))
-    col2.metric("Samples", raw_df.shape[0] if raw_df is not None else 0)
-    col3.metric("Variables", raw_df.shape[1] if raw_df is not None else 0)
+    col1.metric(t("Dataset"), st.session_state.get("filename", "—"))
+    col2.metric(t("Samples"), raw_df.shape[0] if raw_df is not None else 0)
+    col3.metric(t("Variables"), raw_df.shape[1] if raw_df is not None else 0)
 
     st.divider()
 
@@ -65,9 +69,9 @@ def render():
     # ---- Expert overrides ----
     st.divider()
     expert = st.toggle(
-        "Expert overrides (fine-grained ML parameters)",
+        t("Expert overrides (fine-grained ML parameters)"),
         value=False,
-        help=(
+        help=t(
             "Unlock manual control over algorithm-specific parameters. "
             "Leave off to keep the system in fully automatic mode."
         ),
@@ -85,14 +89,14 @@ def render():
     # ---- Diff vs. last run ----
     diff = _settings_diff(settings, new_settings)
     if diff:
-        with st.expander(f"Changes vs. last run ({len(diff)} parameter(s))", expanded=True):
+        with st.expander(t("Changes vs. last run ({n} parameter(s))").format(n=len(diff)), expanded=True):
             _show_diff_table(diff)
     else:
-        st.caption("No changes vs. the last run.")
+        st.caption(t("No changes vs. the last run."))
 
     # ---- Run button ----
     if st.button(
-        "Re-run pipeline with these settings",
+        t("Re-run pipeline with these settings"),
         type="primary",
         use_container_width=True,
         disabled=not diff,
@@ -107,39 +111,42 @@ def _render_standard_controls(settings: dict) -> dict:
     """Render the high-level method choices that AEDAPipeline accepts."""
     out = {}
 
-    st.subheader("Pipeline configuration")
+    st.subheader(t("Pipeline configuration"))
 
     # Preprocessing row
-    st.markdown("**Preprocessing**")
+    st.markdown(f"**{t('Preprocessing')}**")
     col1, col2, col3 = st.columns(3)
     with col1:
         out["impute_strategy"] = st.selectbox(
-            "Missing value strategy",
+            t("Missing value strategy"),
             options=["auto", "median", "mean", "knn", "drop_rows", "drop_cols"],
             index=_safe_index(
                 ["auto", "median", "mean", "knn", "drop_rows", "drop_cols"],
                 settings.get("impute_strategy", "auto"),
             ),
-            help="How to fill in or remove missing values.",
+            format_func=lambda o: t(o),
+            help=t("How to fill in or remove missing values."),
         )
     with col2:
         out["scale_method"] = st.selectbox(
-            "Scaling method",
+            t("Scaling method"),
             options=["auto", "standard", "minmax", "robust"],
             index=_safe_index(
                 ["auto", "standard", "minmax", "robust"],
                 settings.get("scale_method", "auto"),
             ),
-            help="Robust scaling resists outliers; standard is the typical default.",
+            format_func=lambda o: t(o),
+            help=t("Robust scaling resists outliers; standard is the typical default."),
         )
     with col3:
         clr_choice = st.selectbox(
-            "CLR transform (compositional)",
+            t("CLR transform (compositional)"),
             options=["off", "on"],
             index={None: 0, "auto": 0, False: 0, True: 1}.get(
                 settings.get("apply_clr"), 0
             ),
-            help=(
+            format_func=lambda o: t(o),
+            help=t(
                 "Apply Centered Log-Ratio transform for compositional data "
                 "(XRF, granulometry). This transform is manual (opt-in)."
             ),
@@ -147,56 +154,60 @@ def _render_standard_controls(settings: dict) -> dict:
         out["apply_clr"] = {"off": False, "on": True}[clr_choice]
 
     # Engine methods row
-    st.markdown("**Analysis methods**")
+    st.markdown(f"**{t('Analysis methods')}**")
     col1, col2, col3 = st.columns(3)
     with col1:
         out["dim_method"] = st.selectbox(
-            "Dimensionality reduction",
+            t("Dimensionality reduction"),
             options=["auto", "pca", "tsne", "umap"],
             index=_safe_index(
                 ["auto", "pca", "tsne", "umap"], settings.get("dim_method", "auto")
             ),
-            help="PCA is the standard choice for environmental EDA.",
+            format_func=lambda o: t(o),
+            help=t("PCA is the standard choice for environmental EDA."),
         )
     with col2:
         out["clustering_method"] = st.selectbox(
-            "Clustering",
+            t("Clustering"),
             options=["auto", "kmeans", "dbscan", "hierarchical"],
             index=_safe_index(
                 ["auto", "kmeans", "dbscan", "hierarchical"],
                 settings.get("clustering_method", "auto"),
             ),
-            help="'auto' picks the best between K-Means and DBSCAN by silhouette.",
+            format_func=lambda o: t(o),
+            help=t("'auto' picks the best between K-Means and DBSCAN by silhouette."),
         )
     with col3:
         out["anomaly_method"] = st.selectbox(
-            "Anomaly detection",
+            t("Anomaly detection"),
             options=["auto", "isolation_forest", "lof", "zscore", "iqr"],
             index=_safe_index(
                 ["auto", "isolation_forest", "lof", "zscore", "iqr"],
                 settings.get("anomaly_method", "auto"),
             ),
+            format_func=lambda o: t(o),
         )
 
     col1, col2 = st.columns(2)
     with col1:
         out["correlation_method"] = st.selectbox(
-            "Correlation method",
+            t("Correlation method"),
             options=["compare", "pearson", "spearman"],
             index=_safe_index(
                 ["compare", "pearson", "spearman"],
                 settings.get("correlation_method", "compare"),
             ),
-            help="'compare' computes both Pearson and Spearman.",
+            format_func=lambda o: t(o),
+            help=t("'compare' computes both Pearson and Spearman."),
         )
     with col2:
         out["contamination"] = st.slider(
-            "Anomaly contamination rate",
+            t("Anomaly contamination rate"),
             min_value=0.01,
             max_value=0.30,
             value=float(settings.get("contamination", 0.05)),
             step=0.01,
-            help="Expected fraction of anomalous samples in the dataset.",
+            help=t("Expected fraction of anomalous samples in the dataset."),
         )
 
     return out
@@ -209,15 +220,17 @@ def _render_interpretation_controls(settings: dict, raw_df) -> dict:
     """Render the controls for the EF / TEL/PEL interpretation layer."""
     out = {}
 
-    st.subheader("Environmental interpretation")
+    st.subheader(t("Environmental interpretation"))
     st.caption(
-        "Configure how enrichment factors and toxicological classifications "
-        "are computed. The reference element should be conservative "
-        "(typically Al or Fe) and present in the dataset."
+        t(
+            "Configure how enrichment factors and toxicological classifications "
+            "are computed. The reference element should be conservative "
+            "(typically Al or Fe) and present in the dataset."
+        )
     )
 
     out["run_interpretation"] = st.checkbox(
-        "Run environmental interpretation (EF, TEL/PEL, Birch)",
+        t("Run environmental interpretation (EF, TEL/PEL, Birch)"),
         value=bool(settings.get("run_interpretation", True)),
     )
 
@@ -238,23 +251,24 @@ def _render_interpretation_controls(settings: dict, raw_df) -> dict:
     col1, col2 = st.columns(2)
     with col1:
         out["reference_element"] = st.selectbox(
-            "Reference element",
+            t("Reference element"),
             options=options,
             index=_safe_index(options, settings.get("reference_element", "Al")),
-            help=(
+            help=t(
                 "Conservative element used as a normalizer in the EF formula. "
                 "Al and Fe are the most common choices for sediment studies."
             ),
         )
     with col2:
         out["baseline_strategy"] = st.selectbox(
-            "Baseline strategy",
+            t("Baseline strategy"),
             options=["deepest", "global_min_depth", "user"],
             index=_safe_index(
                 ["deepest", "global_min_depth", "user"],
                 settings.get("baseline_strategy", "deepest"),
             ),
-            help=(
+            format_func=lambda o: t(o),
+            help=t(
                 "deepest: per-site deepest sample (recommended when sites are present). "
                 "global_min_depth: single deepest sample for the whole dataset. "
                 "user: provide your own baseline values."
@@ -280,10 +294,12 @@ def _render_custom_baseline_editor(current):
     """
     import pandas as pd
 
-    st.markdown("**Custom baseline**")
+    st.markdown(f"**{t('Custom baseline')}**")
     st.caption(
-        "Edit baseline values as a table. The reference element and all "
-        "metals to be analyzed must be present."
+        t(
+            "Edit baseline values as a table. The reference element and all "
+            "metals to be analyzed must be present."
+        )
     )
 
     # Convert current dict to DataFrame for editing
@@ -311,10 +327,10 @@ def _render_custom_baseline_editor(current):
     if edited_df is not None and len(edited_df) > 0:
         try:
             result = dict(zip(edited_df["Element"], edited_df["Concentration"]))
-            st.success("Baseline parsed correctly.")
+            st.success(t("Baseline parsed correctly."))
             return result
         except (ValueError, KeyError) as e:
-            st.error(f"Error parsing baseline: {e}")
+            st.error(t("Error parsing baseline: {e}").format(e=e))
             return None
     return None
 
@@ -331,10 +347,12 @@ def _render_expert_controls(settings: dict) -> dict:
     it does not recognize, so it is safe to pass parameters that may not
     apply to the currently selected method.
     """
-    st.subheader("Expert overrides")
+    st.subheader(t("Expert overrides"))
     st.caption(
-        "These parameters override the automatic choices of each ML method. "
-        "Leave them at their default to keep the system in auto mode."
+        t(
+            "These parameters override the automatic choices of each ML method. "
+            "Leave them at their default to keep the system in auto mode."
+        )
     )
 
     out = {
@@ -344,9 +362,9 @@ def _render_expert_controls(settings: dict) -> dict:
     }
 
     # ---- PCA / dim reduction ----
-    with st.expander("Dimensionality reduction (PCA / t-SNE / UMAP)", expanded=False):
+    with st.expander(t("Dimensionality reduction (PCA / t-SNE / UMAP)"), expanded=False):
         n_comp = st.number_input(
-            "Number of components (0 = automatic)",
+            t("Number of components (0 = automatic)"),
             min_value=0,
             max_value=50,
             value=int(out["dim_kwargs"].get("n_components") or 0),
@@ -358,17 +376,17 @@ def _render_expert_controls(settings: dict) -> dict:
             out["dim_kwargs"].pop("n_components", None)
 
     # ---- Clustering ----
-    with st.expander("Clustering parameters", expanded=False):
-        st.caption("K-Means")
+    with st.expander(t("Clustering parameters"), expanded=False):
+        st.caption(t("K-Means"))
         col1, col2 = st.columns(2)
         with col1:
             n_clusters = st.number_input(
-                "n_clusters (0 = automatic)",
+                t("n_clusters (0 = automatic)"),
                 min_value=0,
                 max_value=20,
                 value=int(out["clustering_kwargs"].get("n_clusters") or 0),
                 step=1,
-                help="Number of clusters for K-Means and Hierarchical.",
+                help=t("Number of clusters for K-Means and Hierarchical."),
             )
             if n_clusters > 0:
                 out["clustering_kwargs"]["n_clusters"] = int(n_clusters)
@@ -377,18 +395,18 @@ def _render_expert_controls(settings: dict) -> dict:
         with col2:
             current_range = out["clustering_kwargs"].get("k_range") or (2, 10)
             k_min, k_max = st.slider(
-                "k_range for auto-K (silhouette search)",
+                t("k_range for auto-K (silhouette search)"),
                 min_value=2,
                 max_value=15,
                 value=(int(current_range[0]), int(current_range[1])),
             )
             out["clustering_kwargs"]["k_range"] = (k_min, k_max)
 
-        st.caption("DBSCAN")
+        st.caption(t("DBSCAN"))
         col1, col2 = st.columns(2)
         with col1:
             eps_val = st.number_input(
-                "eps (0 = automatic via k-NN knee)",
+                t("eps (0 = automatic via k-NN knee)"),
                 min_value=0.0,
                 max_value=10.0,
                 value=float(out["clustering_kwargs"].get("eps") or 0.0),
@@ -402,7 +420,7 @@ def _render_expert_controls(settings: dict) -> dict:
         with col2:
             out["clustering_kwargs"]["min_samples"] = int(
                 st.number_input(
-                    "min_samples",
+                    t("min_samples"),
                     min_value=2,
                     max_value=50,
                     value=int(out["clustering_kwargs"].get("min_samples") or 5),
@@ -410,20 +428,21 @@ def _render_expert_controls(settings: dict) -> dict:
                 )
             )
 
-        st.caption("Hierarchical")
+        st.caption(t("Hierarchical"))
         out["clustering_kwargs"]["linkage"] = st.selectbox(
-            "Linkage method",
+            t("Linkage method"),
             options=["ward", "complete", "average", "single"],
             index=_safe_index(
                 ["ward", "complete", "average", "single"],
                 out["clustering_kwargs"].get("linkage", "ward"),
             ),
+            format_func=lambda o: t(o),
         )
 
     # ---- Anomaly detection ----
-    with st.expander("Anomaly detection parameters", expanded=False):
+    with st.expander(t("Anomaly detection parameters"), expanded=False):
         n_neighbors = st.number_input(
-            "n_neighbors (LOF, 0 = default)",
+            t("n_neighbors (LOF, 0 = default)"),
             min_value=0,
             max_value=100,
             value=int(out["anomaly_kwargs"].get("n_neighbors") or 0),
@@ -435,7 +454,7 @@ def _render_expert_controls(settings: dict) -> dict:
             out["anomaly_kwargs"].pop("n_neighbors", None)
 
         random_state = st.number_input(
-            "random_state (Isolation Forest, -1 = none)",
+            t("random_state (Isolation Forest, -1 = none)"),
             min_value=-1,
             max_value=10000,
             value=int(out["anomaly_kwargs"].get("random_state", 42)),
@@ -477,9 +496,9 @@ def _show_diff_table(diff: dict):
     rows = []
     for key, (old, new) in diff.items():
         rows.append({
-            "Parameter": key,
-            "Old Value": str(old) if old is not None else "(none)",
-            "New Value": str(new) if new is not None else "(none)",
+            t("Parameter"): key,
+            t("Old Value"): str(old) if old is not None else t("(none)"),
+            t("New Value"): str(new) if new is not None else t("(none)"),
         })
     
     diff_df = pd.DataFrame(rows)
@@ -490,7 +509,7 @@ def _rerun_pipeline(ctx: dict, settings: dict):
     """Re-execute AEDAPipeline.run() with new settings on the existing data."""
     from aeda.pipeline.runner import AEDAPipeline
 
-    progress = st.progress(0, text="Initializing pipeline...")
+    progress = st.progress(0, text=t("Initializing pipeline..."))
 
     try:
         pipeline = AEDAPipeline(
@@ -511,7 +530,7 @@ def _rerun_pipeline(ctx: dict, settings: dict):
             anomaly_kwargs=settings.get("anomaly_kwargs") or None,
         )
 
-        progress.progress(20, text="Running analysis with the new settings...")
+        progress.progress(20, text=t("Running analysis with the new settings..."))
         time.sleep(0.2)
 
         results = pipeline.run(
@@ -520,7 +539,7 @@ def _rerun_pipeline(ctx: dict, settings: dict):
             sheet_name=ctx.get("sheet_name"),
         )
 
-        progress.progress(90, text="Storing new results...")
+        progress.progress(90, text=t("Storing new results..."))
 
         # Update session state with new results and the settings used for this run.
         st.session_state.results = results
@@ -535,29 +554,31 @@ def _rerun_pipeline(ctx: dict, settings: dict):
             "settings": results.effective_settings or settings,
         }
 
-        progress.progress(100, text="Done!")
+        progress.progress(100, text=t("Done!"))
         time.sleep(0.4)
         progress.empty()
         st.success(
-            "Pipeline re-executed successfully. "
-            "New results are now visible in Results, Audit and the other pages."
+            t(
+                "Pipeline re-executed successfully. "
+                "New results are now visible in Results, Audit and the other pages."
+            )
         )
 
         # Quick summary
         col1, col2, col3 = st.columns(3)
         col1.metric(
-            "Variables analyzed",
+            t("Variables analyzed"),
             results.processed_data.shape[1] if results.processed_data is not None else "—",
         )
         if results.clustering:
-            col2.metric("Clusters", results.clustering.n_clusters)
+            col2.metric(t("Clusters"), results.clustering.n_clusters)
         if results.anomalies:
-            col3.metric("Anomalies", results.anomalies.n_anomalies)
+            col3.metric(t("Anomalies"), results.anomalies.n_anomalies)
 
     except Exception as e:
         progress.empty()
         from app.components.errors import show_error
         show_error(
-            "The pipeline could not complete with these settings. Please review the parameter configuration.",
+            t("The pipeline could not complete with these settings. Please review the parameter configuration."),
             exc=e,
         )
