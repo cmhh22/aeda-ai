@@ -11,6 +11,8 @@ from dataclasses import dataclass, field
 from typing import Optional
 from enum import Enum
 
+from aeda.i18n import t
+
 
 class Severity(Enum):
     INFO = "info"
@@ -76,9 +78,11 @@ def _check_missing_pattern(df: pd.DataFrame) -> list[ValidationIssue]:
                     column=", ".join(missing_in),
                     severity=Severity.INFO,
                     message=(
-                        f"Structured missing-data pattern detected: "
-                        f"{n_rows} rows with these columns empty simultaneously. "
-                        f"Likely unmeasured values by experimental design."
+                        t(
+                            "Structured missing-data pattern detected: "
+                            "{n_rows} rows with these columns empty simultaneously. "
+                            "Likely unmeasured values by experimental design."
+                        ).format(n_rows=n_rows)
                     ),
                     affected_rows=n_rows,
                 ))
@@ -90,7 +94,7 @@ def _check_missing_pattern(df: pd.DataFrame) -> list[ValidationIssue]:
             issues.append(ValidationIssue(
                 column=col,
                 severity=severity,
-                message=f"{n_null} missing values ({pct:.1f}%)",
+                message=t("{n_null} missing values ({pct:.1f}%)").format(n_null=n_null, pct=pct),
                 affected_rows=n_null,
             ))
 
@@ -107,7 +111,7 @@ def _check_negative_concentrations(df: pd.DataFrame, measurement_cols: list[str]
                 issues.append(ValidationIssue(
                     column=col,
                     severity=Severity.ERROR,
-                    message=f"{n_neg} negative concentration values detected",
+                    message=t("{n_neg} negative concentration values detected").format(n_neg=n_neg),
                     affected_rows=n_neg,
                 ))
     return issues
@@ -146,8 +150,10 @@ def _check_composition_closure(df: pd.DataFrame) -> list[ValidationIssue]:
                         column=", ".join(matched),
                         severity=Severity.WARNING,
                         message=(
-                            f"Granulometric fractions do not sum to ~100% in {n_bad} rows. "
-                            f"Range: {sums.min():.1f}% - {sums.max():.1f}%"
+                            t(
+                                "Granulometric fractions do not sum to ~100% in {n_bad} rows. "
+                                "Range: {smin:.1f}% - {smax:.1f}%"
+                            ).format(n_bad=n_bad, smin=sums.min(), smax=sums.max())
                         ),
                         affected_rows=n_bad,
                         details={"min_sum": sums.min(), "max_sum": sums.max(), "mean_sum": sums.mean()},
@@ -176,7 +182,7 @@ def _check_outliers_iqr(df: pd.DataFrame, measurement_cols: list[str], factor: f
             issues.append(ValidationIssue(
                 column=col,
                 severity=Severity.INFO,
-                message=f"{n_out} extreme outliers (IQR×{factor})",
+                message=t("{n_out} extreme outliers (IQR×{factor})").format(n_out=n_out, factor=factor),
                 affected_rows=n_out,
                 details={"lower_bound": lower, "upper_bound": upper},
             ))
@@ -192,14 +198,14 @@ def _check_constant_columns(df: pd.DataFrame) -> list[ValidationIssue]:
             issues.append(ValidationIssue(
                 column=col,
                 severity=Severity.WARNING,
-                message="Constant column (variance = 0), will be excluded from analysis",
+                message=t("Constant column (variance = 0), will be excluded from analysis"),
                 affected_rows=len(df),
             ))
         elif nunique <= 3:
             issues.append(ValidationIssue(
                 column=col,
                 severity=Severity.INFO,
-                message=f"Column with very low variability ({nunique} unique values)",
+                message=t("Column with very low variability ({nunique} unique values)").format(nunique=nunique),
                 affected_rows=len(df),
             ))
     return issues

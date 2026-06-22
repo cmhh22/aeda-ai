@@ -84,6 +84,7 @@ def _render_sidebar() -> str:
         unsafe_allow_html=True,
     )
     st.sidebar.caption(t("Automated EDA for environmental data"))
+    language_selector()
     st.sidebar.divider()
 
     # Navigation
@@ -97,9 +98,6 @@ def _render_sidebar() -> str:
     # Status block
     st.sidebar.divider()
     _render_status_block()
-
-    # Language selector (compact, bottom corner)
-    language_selector()
 
     return page_label
 

@@ -658,7 +658,15 @@ LANGUAGES = {"es": "Español", "en": "English"}
 
 
 def get_lang() -> str:
-    return st.session_state.get("lang", DEFAULT_LANG)
+    lang = st.session_state.get("lang", DEFAULT_LANG)
+    # Keep the engine layer's language in sync with the UI so engine-generated
+    # messages (recommendation reasons, warnings, validation) match the UI.
+    try:
+        from aeda.i18n import set_lang as _engine_set_lang
+        _engine_set_lang(lang)
+    except Exception:
+        pass
+    return lang
 
 
 def t(s: str) -> str:
@@ -669,11 +677,13 @@ def t(s: str) -> str:
 
 
 def language_selector() -> None:
-    """Render a compact ES/EN language switch at the bottom of the sidebar."""
-    st.sidebar.radio(
-        "🌐",
-        options=list(LANGUAGES.keys()),
-        format_func=lambda c: {"es": "ES", "en": "EN"}.get(c, c.upper()),
-        key="lang",
-        horizontal=True,
-    )
+    """Render a small, unobtrusive ES/EN dropdown in the sidebar's top-right."""
+    _, ctrl = st.sidebar.columns([2, 1])
+    with ctrl:
+        st.selectbox(
+            "language",
+            options=list(LANGUAGES.keys()),
+            format_func=lambda c: {"es": "ES", "en": "EN"}.get(c, c.upper()),
+            key="lang",
+            label_visibility="collapsed",
+        )

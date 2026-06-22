@@ -24,6 +24,8 @@ from dataclasses import dataclass, field
 from scipy import stats
 from enum import Enum
 
+from aeda.i18n import t
+
 
 # ============================================================
 #  GEOCHEMICAL CONSTANTS
@@ -690,7 +692,7 @@ def _recommend_preprocessing(p: DataProfile) -> list[MethodRecommendation]:
                 "subgroups": p.compositional_subgroups,
                 "user_action_required": True,
             },
-            reason=(
+            reason=t(
                 "Compositional data detected (sum ~100%, low CV). "
                 "CLR transformation is recommended before multivariate analysis. "
                 "Per scientific tutor decision, this transformation must be "
@@ -698,27 +700,27 @@ def _recommend_preprocessing(p: DataProfile) -> list[MethodRecommendation]:
                 "It will NOT be applied automatically."
             ),
             priority=1, confidence=Confidence.HIGH,
-            evidence=[f"Subgrupos: {', '.join(names)}",
-                      "Without CLR, PCA and correlations produce artifacts in closed data."],
+            evidence=[t("Subgroups: {names}").format(names=', '.join(names)),
+                      t("Without CLR, PCA and correlations produce artifacts in closed data.")],
         ))
 
     if p.pct_skewed > 60:
         recs.append(MethodRecommendation(
             category="preprocessing", method="Log Transform",
             params={"apply_log": True, "auto_detect": True},
-            reason=f"{p.pct_skewed:.0f}% of variables are skewed.",
+            reason=t("{pct:.0f}% of variables are skewed.").format(pct=p.pct_skewed),
             priority=1 if not p.is_compositional else 2,
             confidence=Confidence.HIGH if p.pct_skewed > 80 else Confidence.MEDIUM,
-            evidence=[f"Skewed variables: {', '.join(p.skewed_features[:5])}{'...' if len(p.skewed_features) > 5 else ''}",
-                      "Log-transform normalizes distributions and stabilizes variance."],
+            evidence=[t("Skewed variables: {vars}").format(vars=', '.join(p.skewed_features[:5]) + ('...' if len(p.skewed_features) > 5 else '')),
+                      t("Log-transform normalizes distributions and stabilizes variance.")],
         ))
     elif p.pct_skewed > 30:
         recs.append(MethodRecommendation(
             category="preprocessing", method="Log Transform (selectivo)",
             params={"apply_log": True, "cols": p.skewed_features},
-            reason=f"{p.pct_skewed:.0f}% of variables are skewed. Apply only to affected variables.",
+            reason=t("{pct:.0f}% of variables are skewed. Apply only to affected variables.").format(pct=p.pct_skewed),
             priority=2, confidence=Confidence.MEDIUM,
-            evidence=[f"Features: {', '.join(p.skewed_features[:8])}"],
+            evidence=[t("Features: {vars}").format(vars=', '.join(p.skewed_features[:8]))],
         ))
 
     if p.mixed_units_detected:
@@ -726,25 +728,25 @@ def _recommend_preprocessing(p: DataProfile) -> list[MethodRecommendation]:
             category="preprocessing",
             method="StandardScaler (required for mixed units)",
             params={"scale_method": "standard"},
-            reason="Mixed units (% and mg/kg). Scaling is mandatory.",
+            reason=t("Mixed units (% and mg/kg). Scaling is mandatory."),
             priority=1, confidence=Confidence.HIGH,
-            evidence=[f"Major elements in %: {', '.join(p.major_element_cols[:5])}",
-                      f"Trace elements in mg/kg: {', '.join(p.trace_element_cols[:5])}",
-                      "Without scaling, mg/kg variables would dominate PCA and clustering."],
+            evidence=[t("Major elements in %: {cols}").format(cols=', '.join(p.major_element_cols[:5])),
+                      t("Trace elements in mg/kg: {cols}").format(cols=', '.join(p.trace_element_cols[:5])),
+                      t("Without scaling, mg/kg variables would dominate PCA and clustering.")],
         ))
     elif p.pct_outliers_iqr > 20:
         recs.append(MethodRecommendation(
             category="preprocessing", method="RobustScaler",
             params={"scale_method": "robust"},
-            reason=f"{p.pct_outliers_iqr:.0f}% of samples contain outliers. RobustScaler is resilient.",
+            reason=t("{pct:.0f}% of samples contain outliers. RobustScaler is resilient.").format(pct=p.pct_outliers_iqr),
             priority=1, confidence=Confidence.HIGH,
-            evidence=[f"Top outliers: " + ", ".join(f"{o['column']}({o['n_outliers']})" for o in p.outlier_columns[:5])],
+            evidence=[t("Top outliers:") + " " + ", ".join(f"{o['column']}({o['n_outliers']})" for o in p.outlier_columns[:5])],
         ))
     else:
         recs.append(MethodRecommendation(
             category="preprocessing", method="StandardScaler",
             params={"scale_method": "standard"},
-            reason="Distribution is acceptable. Standard scaling is sufficient.",
+            reason=t("Distribution is acceptable. Standard scaling is sufficient."),
             priority=1, confidence=Confidence.MEDIUM,
         ))
 
@@ -752,24 +754,24 @@ def _recommend_preprocessing(p: DataProfile) -> list[MethodRecommendation]:
         recs.append(MethodRecommendation(
             category="preprocessing", method="Subset Analysis",
             params={"impute_strategy": "subset_analysis"},
-            reason="Structured missing data (by design). Do not impute; analyze subsets.",
+            reason=t("Structured missing data (by design). Do not impute; analyze subsets."),
             priority=1, confidence=Confidence.HIGH,
-            evidence=[f"Groups: {len(p.missing_groups)}"] +
-                     [f"Group: {g['n_rows']} rows missing {', '.join(g['missing_columns'][:3])}"
+            evidence=[t("Groups: {n}").format(n=len(p.missing_groups))] +
+                     [t("Group: {rows} rows missing {cols}").format(rows=g['n_rows'], cols=', '.join(g['missing_columns'][:3]))
                       for g in p.missing_groups[:3]],
         ))
     elif p.pct_missing > 10:
         recs.append(MethodRecommendation(
             category="preprocessing", method="KNN Imputation",
             params={"impute_strategy": "knn", "n_neighbors": 5},
-            reason=f"{p.pct_missing:.1f}% random missingness. KNN preserves local structure.",
+            reason=t("{pct:.1f}% random missingness. KNN preserves local structure.").format(pct=p.pct_missing),
             priority=1, confidence=Confidence.MEDIUM,
         ))
     elif p.pct_missing > 0:
         recs.append(MethodRecommendation(
             category="preprocessing", method="Median Imputation",
             params={"impute_strategy": "median"},
-            reason=f"Few missing values ({p.pct_missing:.1f}%). Median is robust and simple.",
+            reason=t("Few missing values ({pct:.1f}%). Median is robust and simple.").format(pct=p.pct_missing),
             priority=1, confidence=Confidence.HIGH,
         ))
 
@@ -777,9 +779,9 @@ def _recommend_preprocessing(p: DataProfile) -> list[MethodRecommendation]:
         recs.append(MethodRecommendation(
             category="preprocessing", method="Drop Constant Variables",
             params={"drop_low_variance": True, "columns": p.low_variance_features},
-            reason=f"{len(p.low_variance_features)} variables with near-zero variance.",
+            reason=t("{n} variables with near-zero variance.").format(n=len(p.low_variance_features)),
             priority=1, confidence=Confidence.HIGH,
-            evidence=[f"Features: {', '.join(p.low_variance_features)}"],
+            evidence=[t("Features: {vars}").format(vars=', '.join(p.low_variance_features))],
         ))
 
     return recs
@@ -792,17 +794,17 @@ def _recommend_dimensionality(p: DataProfile) -> list[MethodRecommendation]:
         evidence = []
         if p.is_multicollinear:
             evidence.append(
-                f"{p.high_correlation_pairs} pairs with |r|>{CORRELATION_BLOCK_THRESHOLD}"
+                t("{n} pairs with |r|>{thr}").format(n=p.high_correlation_pairs, thr=CORRELATION_BLOCK_THRESHOLD)
             )
         if p.correlation_blocks:
             for block in p.correlation_blocks[:3]:
-                evidence.append(f"Correlated block: {', '.join(block[:4])}")
-        evidence.append(f"~{p.effective_dimensionality} components for 90% explained variance")
+                evidence.append(t("Correlated block: {cols}").format(cols=', '.join(block[:4])))
+        evidence.append(t("~{n} components for 90% explained variance").format(n=p.effective_dimensionality))
 
         recs.append(MethodRecommendation(
             category="dimensionality", method="PCA",
             params={"method": "pca", "variance_threshold": 0.85},
-            reason="Multicollinearity and high dimensionality. PCA reduces redundancy.",
+            reason=t("Multicollinearity and high dimensionality. PCA reduces redundancy."),
             priority=1, confidence=Confidence.HIGH, evidence=evidence,
         ))
 
@@ -810,24 +812,24 @@ def _recommend_dimensionality(p: DataProfile) -> list[MethodRecommendation]:
         recs.append(MethodRecommendation(
             category="dimensionality", method="UMAP",
             params={"method": "umap", "n_components": 2, "n_neighbors": 15},
-            reason="For 2D visualization of nonlinear structure.",
+            reason=t("For 2D visualization of nonlinear structure."),
             priority=2, confidence=Confidence.MEDIUM,
-            evidence=[f"n={p.n_samples} is sufficient for nonlinear embedding.",
-                      "UMAP typically preserves global structure better than t-SNE."],
+            evidence=[t("n={n} is sufficient for nonlinear embedding.").format(n=p.n_samples),
+                      t("UMAP typically preserves global structure better than t-SNE.")],
         ))
         recs.append(MethodRecommendation(
             category="dimensionality", method="t-SNE",
             params={"method": "tsne", "n_components": 2, "perplexity": 30},
-            reason="Alternative to UMAP, often better for separating local clusters.",
+            reason=t("Alternative to UMAP, often better for separating local clusters."),
             priority=3, confidence=Confidence.MEDIUM,
         ))
     elif p.is_small_dataset:
         recs.append(MethodRecommendation(
             category="dimensionality", method="PCA (only)",
             params={"method": "pca", "n_components": 2},
-            reason="Small dataset. UMAP/t-SNE can be unstable with few samples.",
+            reason=t("Small dataset. UMAP/t-SNE can be unstable with few samples."),
             priority=1 if not p.is_multicollinear else 2, confidence=Confidence.HIGH,
-            evidence=[f"Only {p.n_samples} samples. Nonlinear methods usually need >50."],
+            evidence=[t("Only {n} samples. Nonlinear methods usually need >50.").format(n=p.n_samples)],
         ))
 
     return recs
@@ -841,37 +843,37 @@ def _recommend_clustering(p: DataProfile) -> list[MethodRecommendation]:
             category="clustering",
             method=f"K-Means (K={p.n_sites}, geographic validation)",
             params={"method": "kmeans", "n_clusters": p.n_sites},
-            reason=f"Check whether {p.n_sites} chemical clusters match known sites.",
+            reason=t("Check whether {n} chemical clusters match known sites.").format(n=p.n_sites),
             priority=1, confidence=Confidence.HIGH,
-            evidence=["If they match: contamination likely drives spatial grouping.",
-                      "If not: other factors dominate variability.",
-                      f"Sites: {', '.join(list(p.samples_per_site.keys())[:5]) if p.samples_per_site else 'N/A'}"],
+            evidence=[t("If they match: contamination likely drives spatial grouping."),
+                      t("If not: other factors dominate variability."),
+                      t("Sites: {sites}").format(sites=', '.join(list(p.samples_per_site.keys())[:5]) if p.samples_per_site else 'N/A')],
         ))
 
     recs.append(MethodRecommendation(
         category="clustering", method="K-Means (automatic K, silhouette)",
         params={"method": "kmeans", "n_clusters": None, "k_range": (2, 10)},
-        reason="Search for optimal K without strong prior assumptions.",
+        reason=t("Search for optimal K without strong prior assumptions."),
         priority=2 if p.has_sites else 1, confidence=Confidence.MEDIUM,
-        evidence=["Evaluates silhouette for K=2..10 and selects the best."],
+        evidence=[t("Evaluates silhouette for K=2..10 and selects the best.")],
     ))
 
     recs.append(MethodRecommendation(
         category="clustering", method="Hierarchical Clustering (Ward)",
         params={"method": "hierarchical", "linkage": "ward"},
-        reason="Produces a dendrogram useful for visualizing sample/site relationships.",
+        reason=t("Produces a dendrogram useful for visualizing sample/site relationships."),
         priority=2, confidence=Confidence.MEDIUM,
-        evidence=["The dendrogram is a strong visual deliverable for the thesis."],
+        evidence=[t("The dendrogram is a strong visual deliverable for the thesis.")],
     ))
 
     if p.pct_outliers_iqr > 15:
         recs.append(MethodRecommendation(
             category="clustering", method="DBSCAN",
             params={"method": "dbscan", "min_samples": 5},
-            reason="Significant outliers detected. DBSCAN can label them as noise.",
+            reason=t("Significant outliers detected. DBSCAN can label them as noise."),
             priority=2, confidence=Confidence.MEDIUM,
-            evidence=[f"{p.pct_outliers_iqr:.0f}% of samples have IQR outliers.",
-                      "DBSCAN does not require specifying K a priori."],
+            evidence=[t("{pct:.0f}% of samples have IQR outliers.").format(pct=p.pct_outliers_iqr),
+                      t("DBSCAN does not require specifying K a priori.")],
         ))
 
     return recs
@@ -902,16 +904,16 @@ def _recommend_spatial(p: DataProfile) -> list[MethodRecommendation]:
                 "aggregation": "site_mean",
                 "clustering": "hierarchical_ward",
             },
-            reason=(
+            reason=t(
                 "Multi-site dataset with depth: compare sites using only their "
                 "surface (recent) sediment to avoid mixing historical periods."
             ),
             priority=1, confidence=Confidence.HIGH,
             evidence=[
-                f"{p.n_sites} sites available for inter-site comparison.",
-                "Surface layer default is 0-10 cm (Yoelvis 2026, LEA-CEAC).",
-                "Aggregates each site to its mean to avoid bias from cores with more samples.",
-                "Standard approach: Birch (2003), Buchman (2008).",
+                t("{n} sites available for inter-site comparison.").format(n=p.n_sites),
+                t("Surface layer default is 0-10 cm (Yoelvis 2026, LEA-CEAC)."),
+                t("Aggregates each site to its mean to avoid bias from cores with more samples."),
+                t("Standard approach: Birch (2003), Buchman (2008)."),
             ],
         ))
     return recs
@@ -924,15 +926,15 @@ def _recommend_anomaly(p: DataProfile) -> list[MethodRecommendation]:
     recs.append(MethodRecommendation(
         category="anomaly", method="Isolation Forest",
         params={"method": "isolation_forest", "contamination": round(contamination, 3)},
-        reason="Primary method. Scales well with high dimensionality.",
+        reason=t("Primary method. Scales well with high dimensionality."),
         priority=1, confidence=Confidence.HIGH,
-        evidence=[f"Estimated contamination: {contamination:.1%} (based on z-score outliers)."],
+        evidence=[t("Estimated contamination: {c:.1%} (based on z-score outliers).").format(c=contamination)],
     ))
 
     recs.append(MethodRecommendation(
         category="anomaly", method="LOF (Local Outlier Factor)",
         params={"method": "lof", "n_neighbors": 20, "contamination": round(contamination, 3)},
-        reason="Local-density complement. Detects contextual anomalies.",
+        reason=t("Local-density complement. Detects contextual anomalies."),
         priority=2, confidence=Confidence.MEDIUM,
     ))
 
@@ -940,10 +942,10 @@ def _recommend_anomaly(p: DataProfile) -> list[MethodRecommendation]:
         recs.append(MethodRecommendation(
             category="anomaly", method="Z-score (heavy metals)",
             params={"method": "zscore", "threshold": 3.0, "cols": p.heavy_metal_cols},
-            reason="Univariate heavy-metal detection to identify hotspots.",
+            reason=t("Univariate heavy-metal detection to identify hotspots."),
             priority=2, confidence=Confidence.HIGH,
-            evidence=[f"Heavy metals: {', '.join(p.heavy_metal_cols)}",
-                      "Z-score indicates WHICH metal is anomalous in each sample."],
+            evidence=[t("Heavy metals: {cols}").format(cols=', '.join(p.heavy_metal_cols)),
+                      t("Z-score indicates WHICH metal is anomalous in each sample.")],
         ))
 
     return recs
@@ -955,10 +957,10 @@ def _recommend_correlation(p: DataProfile) -> list[MethodRecommendation]:
     recs.append(MethodRecommendation(
         category="correlation", method="Pearson + Spearman comparison",
         params={"method": "compare"},
-        reason="Compare linear vs monotonic behavior to detect nonlinear relationships.",
+        reason=t("Compare linear vs monotonic behavior to detect nonlinear relationships."),
         priority=1, confidence=Confidence.HIGH,
-        evidence=["Large differences indicate nonlinearity.",
-              "Both matrices are key thesis deliverables."],
+        evidence=[t("Large differences indicate nonlinearity."),
+              t("Both matrices are key thesis deliverables.")],
     ))
 
     if p.has_heavy_metals and p.has_granulometry:
@@ -966,10 +968,10 @@ def _recommend_correlation(p: DataProfile) -> list[MethodRecommendation]:
             category="correlation",
             method="Metal vs granulometry correlation",
             params={"method": "spearman", "subset_a": p.heavy_metal_cols, "subset_b": p.granulometry_cols},
-            reason="Assess whether metal accumulation depends on grain size.",
+            reason=t("Assess whether metal accumulation depends on grain size."),
             priority=1, confidence=Confidence.HIGH,
-            evidence=["Clays and silts usually retain more metals than sands.",
-                      "Positive metal-clay correlation supports adsorption mechanisms."],
+            evidence=[t("Clays and silts usually retain more metals than sands."),
+                      t("Positive metal-clay correlation supports adsorption mechanisms.")],
         ))
 
     return recs
@@ -981,43 +983,43 @@ def _recommend_feature_analysis(p: DataProfile) -> list[MethodRecommendation]:
     recs.append(MethodRecommendation(
         category="feature_analysis", method="RF Feature Importance (by cluster)",
         params={"method": "rf_cluster_discrimination"},
-        reason="Identify which variables best discriminate clusters.",
+        reason=t("Identify which variables best discriminate clusters."),
         priority=1, confidence=Confidence.HIGH,
-        evidence=["Random Forest + permutation importance for robustness."],
+        evidence=[t("Random Forest + permutation importance for robustness.")],
     ))
 
     if p.has_heavy_metals and p.has_sites:
         recs.append(MethodRecommendation(
             category="feature_analysis", method="RF Feature Importance (by site)",
             params={"method": "rf_site_discrimination", "target": "site"},
-            reason="Identify which metals most differentiate contaminated sites.",
+            reason=t("Identify which metals most differentiate contaminated sites."),
             priority=1, confidence=Confidence.HIGH,
-            evidence=["Use site as target. Most important metals = key contaminants."],
+            evidence=[t("Use site as target. Most important metals = key contaminants.")],
         ))
 
     return recs
 
 
 def _recommend_analysis_scales(p: DataProfile) -> list[AnalysisScale]:
-    scales = [AnalysisScale(name="Global", description="All samples.",
-                            recommended=True, reason="Global overview and inter-site relationships.")]
+    scales = [AnalysisScale(name=t("Global"), description=t("All samples."),
+                            recommended=True, reason=t("Global overview and inter-site relationships."))]
 
     if p.has_sites and p.n_sites >= 2:
         scales.append(AnalysisScale(
-            name="By site", description=f"Separate analysis for each of the {p.n_sites} sites.",
+            name=t("By site"), description=t("Separate analysis for each of the {n} sites.").format(n=p.n_sites),
             filter_col="site", recommended=True,
-            reason="Intra-site patterns and contamination-profile comparison."))
+            reason=t("Intra-site patterns and contamination-profile comparison.")))
 
     if p.has_depth and p.has_depth_gradient:
         scales.append(AnalysisScale(
-            name="Depth profile", description="Vertical variation by profile.",
+            name=t("Depth profile"), description=t("Vertical variation by profile."),
             filter_col="depth", recommended=True,
-            reason="Gradients detected. Analyze temporal trends in sediments."))
+            reason=t("Gradients detected. Analyze temporal trends in sediments.")))
 
     if p.has_major_elements and p.has_trace_elements:
         scales.append(AnalysisScale(
-            name="Major vs Trace", description="Separate analysis by element type.",
-            recommended=True, reason="Different scales and geochemical meaning."))
+            name=t("Major vs Trace"), description=t("Separate analysis by element type."),
+            recommended=True, reason=t("Different scales and geochemical meaning.")))
 
     return scales
 
@@ -1025,21 +1027,17 @@ def _recommend_analysis_scales(p: DataProfile) -> list[AnalysisScale]:
 def _generate_warnings(p: DataProfile) -> list[str]:
     warnings = []
     if p.is_wide_dataset:
-        warnings.append(f"More variables ({p.n_features}) than samples ({p.n_samples}). "
-                        "PCA may overfit.")
+        warnings.append(t("More variables ({nf}) than samples ({ns}). PCA may overfit.").format(nf=p.n_features, ns=p.n_samples))
     if p.ratio_samples_features < 5:
-        warnings.append(f"Low sample/feature ratio ({p.ratio_samples_features:.1f}). "
-                        "ML results may be unstable.")
+        warnings.append(t("Low sample/feature ratio ({r:.1f}). ML results may be unstable.").format(r=p.ratio_samples_features))
     if p.unbalanced_sites:
-        warnings.append("Unbalanced samples across sites. Clustering may be biased.")
+        warnings.append(t("Unbalanced samples across sites. Clustering may be biased."))
     if p.mixed_units_detected:
-        warnings.append("Variables are in different units (% and mg/kg). "
-                        "Scaling is MANDATORY before multivariate analysis.")
+        warnings.append(t("Variables are in different units (% and mg/kg). Scaling is MANDATORY before multivariate analysis."))
     if p.pct_skewed > 80:
-        warnings.append("Almost all variables are skewed. Consider log-transform before scaling.")
+        warnings.append(t("Almost all variables are skewed. Consider log-transform before scaling."))
     if len(p.bimodal_features) > p.n_features * 0.3:
-        warnings.append(f"{len(p.bimodal_features)} bimodal variables. "
-                        "Possible indicator of two distinct populations.")
+        warnings.append(t("{n} bimodal variables. Possible indicator of two distinct populations.").format(n=len(p.bimodal_features)))
     return warnings
 
 
