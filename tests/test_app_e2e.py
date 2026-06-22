@@ -33,7 +33,7 @@ EXCLUDE = ["No", "Code", "Site_Name", "Pret_Code", "CÃ³digo_muestra",
            "Sitio_muestreo", "Fecha_muestreo", "Core",
            "Latitud", "Longitud", "Profundidad"]
 PAGES = ["Upload & Configure", "Analysis Plan", "Results",
-         "Depth Profiles", "Audit", "Advanced Configuration"]
+         "Depth Profiles", "Audit", "Export", "Advanced Configuration"]
 
 
 @pytest.fixture(scope="module")

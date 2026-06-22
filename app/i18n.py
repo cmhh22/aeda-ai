@@ -654,6 +654,36 @@ ES.update({
     "ward": "Ward", "complete": "completo", "average": "promedio", "single": "simple",
 })
 
+ES.update({
+    # --- page: Export ---
+    "Export": "Exportar",
+    "Download the result tables as Excel or CSV.":
+        "Descargue las tablas de resultados en Excel o CSV.",
+    "No tables available to export yet.": "Aún no hay tablas para exportar.",
+    "All tables (Excel)": "Todas las tablas (Excel)",
+    "One workbook with every result table as a separate sheet.":
+        "Un libro con cada tabla de resultados en una hoja aparte.",
+    "Download Excel (.xlsx)": "Descargar Excel (.xlsx)",
+    "Could not build the Excel workbook.": "No se pudo generar el libro de Excel.",
+    "Individual tables (CSV)": "Tablas individuales (CSV)",
+    # export table / sheet names
+    "Raw data": "Datos crudos",
+    "Processed data": "Datos procesados",
+    "Sample classification": "Clasificación de muestras",
+    "Anomaly score": "Puntuación de anomalía",
+    "PCA loadings": "Cargas del PCA",
+    "PCA coordinates": "Coordenadas del PCA",
+    "Component": "Componente",
+    "Explained variance": "Varianza explicada",
+    "PCA explained variance": "Varianza explicada del PCA",
+    "Correlation ({m})": "Correlación ({m})",
+    "TEL/PEL classification": "Clasificación TEL/PEL",
+    "EF classification": "Clasificación de EF",
+    "Enrichment factors (EF)": "Factores de enriquecimiento (EF)",
+    "Surface site means": "Medias por sitio (superficie)",
+    "Site coordinates": "Coordenadas de los sitios",
+})
+
 LANGUAGES = {"es": "Español", "en": "English"}
 
 

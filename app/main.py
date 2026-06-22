@@ -66,6 +66,7 @@ PAGES = [
     ("Results", "app.views.results"),
     ("Depth Profiles", "app.views.depth"),
     ("Audit", "app.views.audit"),
+    ("Export", "app.views.export"),
     ("Advanced Configuration", "app.views.advanced"),
 ]
 
