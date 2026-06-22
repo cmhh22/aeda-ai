@@ -9,7 +9,8 @@ scientific tutor (LEA-CEAC) to take the tables into external tools.
 import streamlit as st
 
 from app.i18n import t
-from app.exports import collect_tables, to_excel_bytes, to_csv_bytes, safe_filename
+from app.exports import collect_tables, to_excel_bytes
+from app.report import build_report_pdf
 
 
 def render():
@@ -31,6 +32,25 @@ def render():
         st.info(t("No tables available to export yet."))
         return
 
+    # ---- PDF report (decisions + validation + results + interpretation) ----
+    st.subheader(t("Analysis report (PDF)"))
+    st.caption(t("A readable report: decisions, validation, key results, interpretation and parameters."))
+    try:
+        pdf = build_report_pdf(results, filename=st.session_state.get("filename"))
+        st.download_button(
+            t("Download report (.pdf)"),
+            data=pdf,
+            file_name="aeda_informe.pdf",
+            mime="application/pdf",
+            type="primary",
+            use_container_width=True,
+        )
+    except Exception as e:
+        from app.components.errors import show_error
+        show_error(t("Could not build the PDF report."), exc=e)
+
+    st.divider()
+
     # ---- One workbook with everything ----
     st.subheader(t("All tables (Excel)"))
     st.caption(t("One workbook with every result table as a separate sheet."))
@@ -41,25 +61,18 @@ def render():
             data=xlsx,
             file_name="aeda_resultados.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            type="primary",
             use_container_width=True,
         )
     except Exception as e:
         from app.components.errors import show_error
         show_error(t("Could not build the Excel workbook."), exc=e)
 
-    st.divider()
-
-    # ---- Individual CSVs ----
-    st.subheader(t("Individual tables (CSV)"))
-    for name, df in tables.items():
-        c1, c2 = st.columns([3, 1])
-        c1.markdown(f"**{name}** · {df.shape[0]}×{df.shape[1]}")
-        c2.download_button(
-            t("CSV"),
-            data=to_csv_bytes(df),
-            file_name=safe_filename(name, "csv"),
-            mime="text/csv",
-            key=f"csv_{name}",
-            use_container_width=True,
+    st.caption(
+        t(
+            "Tip: to download a single table on its own, hover over it on the "
+            "Results or Audit page and use the table's download button."
         )
+    )
+
+    st.divider()
+    st.caption(t("Tables included: {names}").format(names=", ".join(tables.keys())))

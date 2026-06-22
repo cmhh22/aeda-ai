@@ -8,3 +8,4 @@ openpyxl>=3.1
 matplotlib>=3.7
 seaborn>=0.12
 umap-learn>=0.5
+reportlab>=4.0

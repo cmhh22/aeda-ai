@@ -26,7 +26,7 @@ if str(_PROJECT_ROOT) not in sys.path:
 import streamlit as st
 
 from app.theme import apply_theme
-from app.i18n import t, language_selector
+from app.i18n import t, language_toggle
 
 # ---------------------------------------------------------------------------
 # Page configuration
@@ -85,7 +85,6 @@ def _render_sidebar() -> str:
         unsafe_allow_html=True,
     )
     st.sidebar.caption(t("Automated EDA for environmental data"))
-    language_selector()
     st.sidebar.divider()
 
     # Navigation
@@ -127,6 +126,9 @@ def _render_status_block() -> None:
 
 def main() -> None:
     page_label = _render_sidebar()
+
+    # Subtle ES/EN switch in the top-right corner of the page.
+    language_toggle()
 
     # Route to the selected page. Imports are lazy to keep page-load fast.
     page_module_path = dict(PAGES)[page_label]
