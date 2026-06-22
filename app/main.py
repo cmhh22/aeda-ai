@@ -98,8 +98,7 @@ def _render_sidebar() -> str:
     st.sidebar.divider()
     _render_status_block()
 
-    # Language selector
-    st.sidebar.divider()
+    # Language selector (compact, bottom corner)
     language_selector()
 
     return page_label

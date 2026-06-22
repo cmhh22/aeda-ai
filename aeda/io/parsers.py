@@ -43,6 +43,10 @@ KNOWN_DEPTH_PATTERNS = ["profundidad", "depth", "prof"]
 KNOWN_SITE_PATTERNS = ["sitio", "site", "estacion", "station", "site_name"]
 KNOWN_UNCERTAINTY_PREFIX = ["u_", "inc_", "err_", "uncertainty_"]
 KNOWN_DICT_SHEET_PATTERNS = ["diccionario", "dictionary", "metadata", "variables"]
+# Index / sample-number columns (exact, case-insensitive match) — numeric IDs
+# that must not be counted as measurement variables. Kept as exact matches and
+# free of single-letter tokens to avoid clashing with element symbols (N, Y, ...).
+KNOWN_ID_PATTERNS_EXACT = {"no", "id", "order", "row", "index", "idx", "num", "muestra"}
 
 
 def _detect_special_columns(df: pd.DataFrame) -> dict:
@@ -53,6 +57,7 @@ def _detect_special_columns(df: pd.DataFrame) -> dict:
         "depth_col": None,
         "site_col": None,
         "uncertainty_cols": [],
+        "id_cols": [],
         "measurement_cols": [],
     }
 
@@ -65,6 +70,8 @@ def _detect_special_columns(df: pd.DataFrame) -> dict:
             result["site_col"] = orig
         elif any(low.startswith(p) for p in KNOWN_UNCERTAINTY_PREFIX):
             result["uncertainty_cols"].append(orig)
+        elif low in KNOWN_ID_PATTERNS_EXACT:
+            result["id_cols"].append(orig)
     # Contextual UTM detection: only when no geographic coordinates (lat/lon)
     # were detected, AND both 'X' and 'Y' columns are present, treat them
     # as UTM coordinates. The 'both required' rule prevents the chemical
@@ -79,7 +86,7 @@ def _detect_special_columns(df: pd.DataFrame) -> dict:
                 elif low == "y":
                     result["coordinate_cols"].append(orig)
 
-    non_special = set(result["coordinate_cols"] + result["uncertainty_cols"])
+    non_special = set(result["coordinate_cols"] + result["uncertainty_cols"] + result["id_cols"])
     if result["depth_col"]:
         non_special.add(result["depth_col"])
     if result["site_col"]:

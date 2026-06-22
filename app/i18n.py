@@ -669,10 +669,11 @@ def t(s: str) -> str:
 
 
 def language_selector() -> None:
-    """Render the language selector in the sidebar (writes session_state.lang)."""
-    st.sidebar.selectbox(
-        "Idioma / Language",
+    """Render a compact ES/EN language switch at the bottom of the sidebar."""
+    st.sidebar.radio(
+        "🌐",
         options=list(LANGUAGES.keys()),
-        format_func=lambda c: LANGUAGES[c],
+        format_func=lambda c: {"es": "ES", "en": "EN"}.get(c, c.upper()),
         key="lang",
+        horizontal=True,
     )

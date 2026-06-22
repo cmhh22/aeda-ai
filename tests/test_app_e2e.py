@@ -62,11 +62,11 @@ def test_app_boots_empty():
     """The app boots in the empty state without raising."""
     at = AppTest.from_file(APP, default_timeout=60).run()
     assert not at.exception
-    # The navigation radio is present in the sidebar.
-    assert len(at.sidebar.radio) == 1
-    # Six navigation entries are present. Labels may be displayed translated
-    # (format_func), so we assert the count rather than the raw English values.
-    assert len(at.sidebar.radio[0].options) == len(PAGES)
+    # The sidebar has a navigation radio with one entry per page, plus a
+    # compact language radio (ES/EN). Identify the navigation radio by its
+    # option count so the language control doesn't break the assertion.
+    nav_radios = [r for r in at.sidebar.radio if len(r.options) == len(PAGES)]
+    assert len(nav_radios) == 1
 
 
 @pytest.mark.parametrize("page", PAGES)
