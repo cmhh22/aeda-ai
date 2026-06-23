@@ -737,8 +737,6 @@ LANGUAGES = {"es": "Español", "en": "English"}
 
 def get_lang() -> str:
     lang = st.session_state.get("lang", DEFAULT_LANG)
-    # Keep the engine layer's language in sync with the UI so engine-generated
-    # messages (recommendation reasons, warnings, validation) match the UI.
     try:
         from aeda.i18n import set_lang as _engine_set_lang
         _engine_set_lang(lang)
@@ -771,16 +769,30 @@ def language_toggle() -> None:
     st.markdown(
         """
         <style>
+        /* Pin into the top header band. Default: right next to the Deploy
+           button. When Streamlit shows the "Running" status widget, slide
+           right so it sits beside it instead of overlapping. */
         .st-key-lang_switch {
             position: fixed;
-            top: 0.45rem;
+            top: 1rem;
             right: 7.5rem;
             z-index: 1000000;
         }
+        [data-testid="stApp"]:has([data-testid="stStatusWidget"]) .st-key-lang_switch {
+            right: 13rem;
+        }
+        /* Match the Deploy button's size/feel. */
         .st-key-lang_switch [data-baseweb="segmented-control"],
         .st-key-lang_switch [role="radiogroup"] {
-            transform: scale(0.88);
-            transform-origin: top right;
+            min-height: 2.5rem;
+        }
+        .st-key-lang_switch [data-baseweb="segmented-control"] button,
+        .st-key-lang_switch [role="radiogroup"] label {
+            padding-top: 0.35rem;
+            padding-bottom: 0.35rem;
+            padding-left: 0.9rem;
+            padding-right: 0.9rem;
+            font-size: 0.9rem;
         }
         </style>
         """,
