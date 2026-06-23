@@ -737,6 +737,8 @@ LANGUAGES = {"es": "Español", "en": "English"}
 
 def get_lang() -> str:
     lang = st.session_state.get("lang", DEFAULT_LANG)
+    # Keep the engine layer's language in sync with the UI so engine-generated
+    # messages (recommendation reasons, warnings, validation) match the UI.
     try:
         from aeda.i18n import set_lang as _engine_set_lang
         _engine_set_lang(lang)
@@ -763,6 +765,9 @@ def language_toggle() -> None:
     opts = list(LANGUAGES.keys())
     fmt = lambda c: {"es": "ES", "en": "EN"}.get(c, c.upper())
 
+    # Pin the switch into Streamlit's top header band (the fixed white bar with
+    # the Deploy menu / running indicator), so it stays put across pages.
+    # Streamlit tags a keyed widget's container with class ``st-key-<key>``.
     st.markdown(
         """
         <style>
@@ -778,16 +783,18 @@ def language_toggle() -> None:
         [data-testid="stApp"]:has([data-testid="stStatusWidget"]) .st-key-lang_switch {
             right: 13rem;
         }
-        /* Same width and font size as the Deploy button. */
-        .st-key-lang_switch { width: 6rem; }
+        /* Keep both segments on one line (a fixed width was wrapping them). */
         .st-key-lang_switch [data-baseweb="segmented-control"],
         .st-key-lang_switch [role="radiogroup"] {
-            width: 100%;
+            flex-wrap: nowrap;
+            white-space: nowrap;
+            /* min-width: 6rem;  <- optional: widen to match Deploy if desired */
         }
         .st-key-lang_switch [data-baseweb="segmented-control"] button,
         .st-key-lang_switch [role="radiogroup"] label {
-            padding: 0.25rem 0.5rem;
-            font-size: 0.875rem;
+            padding: 0.25rem 0.75rem;
+            font-size: 0.875rem;       /* same as the Deploy button (14px) */
+            white-space: nowrap;
         }
         </style>
         """,
