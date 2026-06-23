@@ -763,9 +763,6 @@ def language_toggle() -> None:
     opts = list(LANGUAGES.keys())
     fmt = lambda c: {"es": "ES", "en": "EN"}.get(c, c.upper())
 
-    # Pin the switch into Streamlit's top header band (the fixed white bar with
-    # the Deploy menu / running indicator), so it stays put across pages.
-    # Streamlit tags a keyed widget's container with class ``st-key-<key>``.
     st.markdown(
         """
         <style>
@@ -781,18 +778,16 @@ def language_toggle() -> None:
         [data-testid="stApp"]:has([data-testid="stStatusWidget"]) .st-key-lang_switch {
             right: 13rem;
         }
-        /* Match the Deploy button's size/feel. */
+        /* Same width and font size as the Deploy button. */
+        .st-key-lang_switch { width: 6rem; }
         .st-key-lang_switch [data-baseweb="segmented-control"],
         .st-key-lang_switch [role="radiogroup"] {
-            min-height: 2.5rem;
+            width: 100%;
         }
         .st-key-lang_switch [data-baseweb="segmented-control"] button,
         .st-key-lang_switch [role="radiogroup"] label {
-            padding-top: 0.35rem;
-            padding-bottom: 0.35rem;
-            padding-left: 0.9rem;
-            padding-right: 0.9rem;
-            font-size: 0.9rem;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.875rem;
         }
         </style>
         """,
