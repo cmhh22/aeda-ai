@@ -764,19 +764,40 @@ def language_toggle() -> None:
     cur = st.session_state.get("lang", DEFAULT_LANG)
     opts = list(LANGUAGES.keys())
     fmt = lambda c: {"es": "ES", "en": "EN"}.get(c, c.upper())
-    _, right = st.columns([5, 1])
-    with right:
-        seg = getattr(st, "segmented_control", None)
-        if seg is not None:
-            choice = seg(
-                "lang", options=opts, default=cur, format_func=fmt,
-                label_visibility="collapsed", key="lang_switch",
-            )
-        else:
-            choice = st.radio(
-                "lang", options=opts, index=opts.index(cur), format_func=fmt,
-                horizontal=True, label_visibility="collapsed", key="lang_switch",
-            )
+
+    # Pin the switch into Streamlit's top header band (the fixed white bar with
+    # the Deploy menu / running indicator), so it stays put across pages.
+    # Streamlit tags a keyed widget's container with class ``st-key-<key>``.
+    st.markdown(
+        """
+        <style>
+        .st-key-lang_switch {
+            position: fixed;
+            top: 0.45rem;
+            right: 7.5rem;
+            z-index: 1000000;
+        }
+        .st-key-lang_switch [data-baseweb="segmented-control"],
+        .st-key-lang_switch [role="radiogroup"] {
+            transform: scale(0.88);
+            transform-origin: top right;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    seg = getattr(st, "segmented_control", None)
+    if seg is not None:
+        choice = seg(
+            "lang", options=opts, default=cur, format_func=fmt,
+            label_visibility="collapsed", key="lang_switch",
+        )
+    else:
+        choice = st.radio(
+            "lang", options=opts, index=opts.index(cur), format_func=fmt,
+            horizontal=True, label_visibility="collapsed", key="lang_switch",
+        )
     if choice and choice != cur:
         st.session_state.lang = choice
         st.rerun()
