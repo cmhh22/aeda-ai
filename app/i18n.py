@@ -755,25 +755,28 @@ def t(s: str) -> str:
 
 
 def language_toggle() -> None:
-    """Minimal ES · EN switch, right-aligned at the top of the page.
+    """Compact ES/EN switch, right-aligned at the top of the page.
 
-    The active language is shown in bold (plain text); the other is a small
-    button. Lives in the main area (not the sidebar) so it reads as a subtle
-    top-right corner control.
+    Uses a segmented control (clean two-option toggle) when available, falling
+    back to a small horizontal radio on older Streamlit versions. Bound to
+    ``session_state.lang`` so a change reruns the app in the new language.
     """
     cur = st.session_state.get("lang", DEFAULT_LANG)
-    _, c_es, c_sep, c_en = st.columns([24, 1, 1, 1])
-    with c_es:
-        if cur == "es":
-            st.markdown("**ES**")
-        elif st.button("ES", key="lang_es"):
-            st.session_state.lang = "es"
-            st.rerun()
-    with c_sep:
-        st.markdown("·")
-    with c_en:
-        if cur == "en":
-            st.markdown("**EN**")
-        elif st.button("EN", key="lang_en"):
-            st.session_state.lang = "en"
-            st.rerun()
+    opts = list(LANGUAGES.keys())
+    fmt = lambda c: {"es": "ES", "en": "EN"}.get(c, c.upper())
+    _, right = st.columns([5, 1])
+    with right:
+        seg = getattr(st, "segmented_control", None)
+        if seg is not None:
+            choice = seg(
+                "lang", options=opts, default=cur, format_func=fmt,
+                label_visibility="collapsed", key="lang_switch",
+            )
+        else:
+            choice = st.radio(
+                "lang", options=opts, index=opts.index(cur), format_func=fmt,
+                horizontal=True, label_visibility="collapsed", key="lang_switch",
+            )
+    if choice and choice != cur:
+        st.session_state.lang = choice
+        st.rerun()
