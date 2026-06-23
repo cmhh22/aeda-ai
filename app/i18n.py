@@ -724,6 +724,14 @@ ES.update({
         "Informe generado por AEDA-AI. Las figuras están disponibles en la aplicación.",
 })
 
+ES.update({
+    # --- PDF report figures (Phase 2) ---
+    "Key figures": "Figuras clave",
+    "PCA biplot (PC1 vs PC2)": "Biplot de PCA (PC1 vs PC2)",
+    "Correlation matrix (Pearson)": "Matriz de correlación (Pearson)",
+    "Enrichment factor (EF) per metal": "Factor de enriquecimiento (EF) por metal",
+})
+
 LANGUAGES = {"es": "Español", "en": "English"}
 
 

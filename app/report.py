@@ -21,11 +21,14 @@ from reportlab.lib.enums import TA_LEFT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import cm
+from reportlab.lib.utils import ImageReader
 from reportlab.platypus import (
     Paragraph, Spacer, Table, TableStyle, SimpleDocTemplate, KeepTogether,
+    Image, PageBreak,
 )
 
 from app.i18n import t
+from app.report_figures import all_figures
 
 # Friendly category names (same mapping the Audit page uses). Keys are logic IDs.
 _CATEGORY_LABELS = {
@@ -239,6 +242,23 @@ def _methodology(results, st, flow):
         flow.append(_kv_table(rows, st))
 
 
+def _figures(results, st, flow, content_width):
+    figs = all_figures(results)
+    if not figs:
+        return
+    flow.append(PageBreak())
+    flow.append(Paragraph(t("Key figures"), st["h1"]))
+    for caption, png in figs:
+        ir = ImageReader(io.BytesIO(png))
+        iw, ih = ir.getSize()
+        w = min(content_width, 15.5 * cm)
+        h = w * ih / iw
+        block = [Spacer(1, 6),
+                 Image(io.BytesIO(png), width=w, height=h),
+                 Paragraph(caption, st["small"])]
+        flow.append(KeepTogether(block))
+
+
 def build_report_pdf(results, filename: str | None = None) -> bytes:
     """Build the Phase-1 (text + tables) PDF report and return its bytes."""
     st = _styles()
@@ -275,6 +295,7 @@ def build_report_pdf(results, filename: str | None = None) -> bytes:
     _validation(results, st, flow)
     _key_results(results, st, flow)
     _interpretation(results, st, flow)
+    _figures(results, st, flow, doc.width)
     _methodology(results, st, flow)
 
     flow.append(Spacer(1, 16))
