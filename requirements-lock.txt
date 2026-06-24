@@ -63,3 +63,4 @@ tzdata==2026.1
 umap-learn==0.5.12
 urllib3==2.6.3
 watchdog==6.0.0
+reportlab==5.0.0

@@ -50,6 +50,7 @@ dependencies:
       - pytest-cov==7.1.0
       - python-dateutil==2.9.0.post0
       - referencing==0.37.0
+      - reportlab==5.0.0
       - requests==2.33.1
       - rpds-py==0.30.0
       - scikit-learn==1.8.0
