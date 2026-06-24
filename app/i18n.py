@@ -777,11 +777,11 @@ def language_toggle() -> None:
         .st-key-lang_switch {
             position: fixed;
             top: 1rem;
-            right: 7.5rem;
+            right: 9rem;
             z-index: 1000000;
         }
         [data-testid="stApp"]:has([data-testid="stStatusWidget"]) .st-key-lang_switch {
-            right: 13rem;
+            right: 15.5rem;
         }
         /* Keep both segments on one line (a fixed width was wrapping them). */
         .st-key-lang_switch [data-baseweb="segmented-control"],
