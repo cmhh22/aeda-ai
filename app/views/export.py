@@ -10,7 +10,6 @@ import streamlit as st
 
 from app.i18n import t
 from app.exports import collect_tables, to_excel_bytes
-from app.report import build_report_pdf
 
 
 def render():
@@ -36,6 +35,7 @@ def render():
     st.subheader(t("Analysis report (PDF)"))
     st.caption(t("A readable report: decisions, validation, key results, interpretation and parameters."))
     try:
+        from app.report import build_report_pdf
         pdf = build_report_pdf(results, filename=st.session_state.get("filename"))
         st.download_button(
             t("Download report (.pdf)"),
