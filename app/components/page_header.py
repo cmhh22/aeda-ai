@@ -13,7 +13,7 @@ Usage
         page_header(
             title="Upload & Configure",
             description="Upload your environmental dataset and configure the analysis.",
-            icon="📤",
+            icon=":material/upload:",
         )
         # ... rest of the page ...
 """
@@ -38,7 +38,8 @@ def page_header(
         A short subtitle shown below the title in caption style. Keep it under
         ~120 characters so it fits on one line on most screens.
     icon : str, optional
-        A leading emoji or single character. Rendered next to the title.
+        A Material icon name (e.g. ":material/upload:") or None.
+        Rendered next to the title using Streamlit's native Material icon support.
     """
     if icon:
         st.markdown(

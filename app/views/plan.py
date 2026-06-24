@@ -17,7 +17,7 @@ def render():
     page_header(
         title=t("Analysis Plan"),
         description=t("What the system decided to do with your dataset, and why."),
-        icon="🧭",
+        icon=":material/explore:",
     )
 
     results = st.session_state.get("results")

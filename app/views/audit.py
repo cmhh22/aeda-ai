@@ -27,7 +27,7 @@ def render():
             "Trace of every decision the pipeline made on this dataset. "
             "Use this page to verify the methodology and defend each choice."
         ),
-        icon="🔍",
+        icon=":material/fact_check:",
     )
 
     results = st.session_state.get("results")

@@ -24,7 +24,7 @@ def render():
     page_header(
         title=t("Upload & Configure"),
         description=t("Upload your environmental dataset and run the analysis with one click."),
-        icon="📤",
+        icon=":material/upload:",
     )
 
     # ---- Step 1: File upload ----

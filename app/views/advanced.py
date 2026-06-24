@@ -34,7 +34,7 @@ def render():
             "parameters. Useful for sensitivity analysis and for the scientific "
             "tutor to validate alternative methodological choices."
         ),
-        icon="⚙️",
+        icon=":material/tune:",
     )
 
     ctx = st.session_state.get("run_context")

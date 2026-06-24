@@ -21,7 +21,7 @@ def render():
     page_header(
         title=t("Results"),
         description=t("Interactive dashboard: PCA, correlations, clusters and anomalies."),
-        icon="📊",
+        icon=":material/bar_chart:",
     )
 
     results = st.session_state.get("results")
