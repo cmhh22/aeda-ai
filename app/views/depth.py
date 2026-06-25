@@ -17,7 +17,7 @@ def render():
     page_header(
         title=t("Depth Profiles"),
         description=t("Concentration vs. depth — sediment cores read as temporal series."),
-        icon=":material/waves:",
+        icon="🌊",
     )
 
     st.caption(

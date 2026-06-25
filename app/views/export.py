@@ -18,7 +18,7 @@ def render():
     page_header(
         title=t("Export"),
         description=t("Download the result tables as Excel or CSV."),
-        icon=":material/download:",
+        icon="⬇️",
     )
 
     results = st.session_state.get("results")
