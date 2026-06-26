@@ -33,7 +33,7 @@ def _localize_uploader() -> None:
         /* Instrucción del límite */
         section[data-testid="stFileUploaderDropzone"] [data-testid="stFileUploaderDropzoneInstructions"] span { font-size: 0; }
         section[data-testid="stFileUploaderDropzone"] [data-testid="stFileUploaderDropzoneInstructions"] span::after {
-            content: "Límite 200 MB por archivo \2022 XLSX, XLS, CSV"; font-size: 0.8rem;
+            content: "200 MB por archivo • XLSX, XLS, CSV"; font-size: 0.8rem;
         }
         </style>
         """,
