@@ -18,33 +18,6 @@ import time
 from app.i18n import t, get_lang
 
 
-def _localize_uploader() -> None:
-    """Inject CSS to translate file uploader text to Spanish when lang is ES."""
-    if get_lang() != "es":
-        return
-    st.markdown(
-        """
-        <style>
-        /* Botón: ocultar el "upload" nativo (y cualquier hijo) y dejar solo la traducción */
-        section[data-testid="stFileUploaderDropzone"] button { font-size: 0 !important; }
-        section[data-testid="stFileUploaderDropzone"] button * { font-size: 0 !important; }
-        section[data-testid="stFileUploaderDropzone"] button::after {
-            content: "Examinar archivos"; font-size: 0.875rem !important;
-        }
-        [data-testid="stFileUploaderDropzoneInstructions"] span { font-size: 0; }
-        [data-testid="stFileUploaderDropzoneInstructions"] span::after {
-            content: "Arrastra y suelta el archivo aquí"; font-size: 0.9rem;
-        }
-        [data-testid="stFileUploaderDropzoneInstructions"] small { font-size: 0; }
-        [data-testid="stFileUploaderDropzoneInstructions"] small::after {
-            content: "Límite 200 MB por archivo • XLSX, XLS, CSV"; font-size: 0.8rem;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
 def render():
     from app.components.page_header import page_header
 
@@ -56,7 +29,32 @@ def render():
 
     # ---- Step 1: File upload ----
     st.subheader(t("1. File"))
-    _localize_uploader()
+    # Ocultar la instrucción nativa de Streamlit (queda en inglés y no se traduce por i18n)
+    st.markdown(
+        """
+        <style>
+        section[data-testid="stFileUploaderDropzone"] [data-testid="stFileUploaderDropzoneInstructions"]{
+            display: none;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+    # Traducir el texto del botón a español (conservando el icono); en inglés se deja nativo
+    if get_lang() == "es":
+        st.markdown(
+            """
+            <style>
+            section[data-testid="stFileUploaderDropzone"] button [data-testid="stMarkdownContainer"] p { font-size: 0; }
+            section[data-testid="stFileUploaderDropzone"] button [data-testid="stMarkdownContainer"] p::after {
+                content: "Examinar archivos"; font-size: 0.875rem;
+            }
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
+    # Instrucción de formatos controlada por i18n (sustituye a la nativa oculta)
+    st.caption(t("Formatos: XLSX, XLS o CSV \u00b7 máximo 200 MB por archivo."))
     uploaded_file = st.file_uploader(
         t("Select an Excel or CSV file"),
         type=["xlsx", "xls", "csv"],
