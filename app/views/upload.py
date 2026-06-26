@@ -15,7 +15,32 @@ from pathlib import Path
 import tempfile
 import time
 
-from app.i18n import t
+from app.i18n import t, get_lang
+
+
+def _localize_uploader() -> None:
+    """Inject CSS to translate file uploader text to Spanish when lang is ES."""
+    if get_lang() != "es":
+        return
+    st.markdown(
+        """
+        <style>
+        section[data-testid="stFileUploaderDropzone"] button { font-size: 0; }
+        section[data-testid="stFileUploaderDropzone"] button::after {
+            content: "Examinar archivos"; font-size: 0.875rem;
+        }
+        [data-testid="stFileUploaderDropzoneInstructions"] span { font-size: 0; }
+        [data-testid="stFileUploaderDropzoneInstructions"] span::after {
+            content: "Arrastra y suelta el archivo aquí"; font-size: 0.9rem;
+        }
+        [data-testid="stFileUploaderDropzoneInstructions"] small { font-size: 0; }
+        [data-testid="stFileUploaderDropzoneInstructions"] small::after {
+            content: "Límite 200 MB por archivo • XLSX, XLS, CSV"; font-size: 0.8rem;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def render():
@@ -29,6 +54,7 @@ def render():
 
     # ---- Step 1: File upload ----
     st.subheader(t("1. File"))
+    _localize_uploader()
     uploaded_file = st.file_uploader(
         t("Select an Excel or CSV file"),
         type=["xlsx", "xls", "csv"],
