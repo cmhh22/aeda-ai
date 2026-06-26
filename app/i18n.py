@@ -686,8 +686,6 @@ ES.update({
     "Enrichment factors (EF)": "Factores de enriquecimiento (EF)",
     "Surface site means": "Medias por sitio (superficie)",
     "Site coordinates": "Coordenadas de los sitios",
-    "Formatos: XLSX, XLS o CSV \u00b7 máximo 200 MB por archivo.":
-        "Formats: XLSX, XLS or CSV \u00b7 max 200 MB per file.",
 })
 
 ES.update({
