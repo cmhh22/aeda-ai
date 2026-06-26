@@ -25,9 +25,11 @@ def _localize_uploader() -> None:
     st.markdown(
         """
         <style>
-        section[data-testid="stFileUploaderDropzone"] button { font-size: 0; }
+        /* Botón: ocultar el "upload" nativo (y cualquier hijo) y dejar solo la traducción */
+        section[data-testid="stFileUploaderDropzone"] button { font-size: 0 !important; }
+        section[data-testid="stFileUploaderDropzone"] button * { font-size: 0 !important; }
         section[data-testid="stFileUploaderDropzone"] button::after {
-            content: "Examinar archivos"; font-size: 0.875rem;
+            content: "Examinar archivos"; font-size: 0.875rem !important;
         }
         [data-testid="stFileUploaderDropzoneInstructions"] span { font-size: 0; }
         [data-testid="stFileUploaderDropzoneInstructions"] span::after {
