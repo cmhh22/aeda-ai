@@ -56,3 +56,12 @@ data/raw/*
 data/processed/*
 !data/raw/.gitkeep
 !data/processed/.gitkeep
+
+# Working/scratch dirs
+.files_applied/
+.agents/
+.tmp_pytest/
+
+# Archives
+*.rar
+*.zip
